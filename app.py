@@ -28,6 +28,7 @@ from modules.monthly_signals import MonthlySignals
 from modules.alert_manager import AlertManager
 from modules.portfolio_tracker import PortfolioTracker
 from modules.backtester import Backtester
+from modules.ml_predictor import MLPredictor
 
 # Configure page
 st.set_page_config(
@@ -104,6 +105,7 @@ class TradingDashboard:
         self.alert_manager = AlertManager(self.config)
         self.portfolio_tracker = PortfolioTracker(self.config, self.db)
         self.backtester = Backtester(self.config, self.monthly_signals, self.db)
+        self.ml_predictor = MLPredictor(self.config)
         
         self.logger.info("Dashboard initialized successfully")
     
@@ -656,9 +658,9 @@ class TradingDashboard:
                         entry_price = stock_data['Close'].iloc[-1]
                         self.db.open_position(
                             symbol=sim_symbol,
-                            shares=sim_shares,
                             entry_price=entry_price,
-                            strategy="Manual Entry"
+                            shares=sim_shares,
+                            notes="Manual Entry"
                         )
                         st.success(f"Opened {sim_shares} shares of {sim_symbol} @ ${entry_price:.2f}")
                         st.rerun()
@@ -696,28 +698,112 @@ class TradingDashboard:
         with col4:
             st.metric("Cash", format_currency(portfolio['cash']))
         
+        # Portfolio management buttons
+        st.markdown("---")
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col2:
+            if st.button("🗑️ Delete All Positions", type="secondary", use_container_width=True):
+                if st.session_state.get('confirm_delete_all', False):
+                    # Actually delete all positions
+                    if self.db.delete_all_positions():
+                        st.success("✅ All positions deleted successfully!")
+                        st.session_state['confirm_delete_all'] = False
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to delete positions")
+                else:
+                    # Show confirmation
+                    st.session_state['confirm_delete_all'] = True
+                    st.warning("⚠️ Click again to confirm deletion of ALL positions")
+        
+        with col3:
+            if st.session_state.get('confirm_delete_all', False):
+                if st.button("❌ Cancel", use_container_width=True):
+                    st.session_state['confirm_delete_all'] = False
+                    st.rerun()
+        
         # Positions table
         st.subheader("📊 Open Positions")
         
         positions_df = pd.DataFrame(portfolio['positions'])
         if not positions_df.empty:
-            # Format for display
-            display_df = positions_df[[
-                'symbol', 'shares', 'entry_price', 'current_price', 
-                'unrealized_pnl', 'unrealized_pnl_pct', 'days_held'
-            ]].copy()
+            # Headers for the table
+            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
+            with col1:
+                st.markdown("**Symbol**")
+            with col2:
+                st.markdown("**Shares**")
+            with col3:
+                st.markdown("**Entry**")
+            with col4:
+                st.markdown("**Current**")
+            with col5:
+                st.markdown("**P&L**")
+            with col6:
+                st.markdown("**P&L %**")
+            with col7:
+                st.markdown("**Days**")
+            with col8:
+                st.markdown("**Action**")
             
-            display_df.columns = [
-                'Symbol', 'Shares', 'Entry', 'Current', 'P&L', 'P&L %', 'Days'
-            ]
+            st.divider()
             
-            # Format currency and percentage
-            display_df['Entry'] = display_df['Entry'].apply(lambda x: f"${x:.2f}")
-            display_df['Current'] = display_df['Current'].apply(lambda x: f"${x:.2f}")
-            display_df['P&L'] = display_df['P&L'].apply(lambda x: f"${x:.2f}")
-            display_df['P&L %'] = display_df['P&L %'].apply(lambda x: f"{x:+.2f}%")
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            # Interactive positions table with delete buttons
+            for i, (idx, position) in enumerate(positions_df.iterrows()):
+                with st.container():
+                    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
+                    
+                    # Position data
+                    with col1:
+                        st.write(f"**{position['symbol']}**")
+                    with col2:
+                        st.write(f"{position['shares']} shares")
+                    with col3:
+                        st.write(f"${position['entry_price']:.2f}")
+                    with col4:
+                        st.write(f"${position['current_price']:.2f}")
+                    with col5:
+                        pnl_color = "green" if position['unrealized_pnl'] >= 0 else "red"
+                        st.markdown(f"<span style='color: {pnl_color}'>${position['unrealized_pnl']:.2f}</span>", 
+                                   unsafe_allow_html=True)
+                    with col6:
+                        pnl_pct_color = "green" if position['unrealized_pnl_pct'] >= 0 else "red"
+                        st.markdown(f"<span style='color: {pnl_pct_color}'>{position['unrealized_pnl_pct']:+.2f}%</span>", 
+                                   unsafe_allow_html=True)
+                    with col7:
+                        st.write(f"{position['days_held']} days")
+                    with col8:
+                        # Get position ID from open_positions
+                        position_id = open_positions[i]['id']
+                        
+                        # Delete button with confirmation
+                        delete_key = f"delete_{position_id}"
+                        confirm_key = f"confirm_delete_{position_id}"
+                        
+                        if st.session_state.get(confirm_key, False):
+                            # Show confirmation buttons
+                            sub_col1, sub_col2 = st.columns(2)
+                            with sub_col1:
+                                if st.button("✅", key=f"confirm_yes_{position_id}", help="Confirm delete"):
+                                    if self.db.delete_position(position_id):
+                                        st.success(f"✅ Deleted {position['symbol']} position")
+                                        st.session_state[confirm_key] = False
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ Failed to delete position")
+                            with sub_col2:
+                                if st.button("❌", key=f"confirm_no_{position_id}", help="Cancel delete"):
+                                    st.session_state[confirm_key] = False
+                                    st.rerun()
+                        else:
+                            # Normal delete button
+                            if st.button("🗑️", key=delete_key, help=f"Delete {position['symbol']} position"):
+                                st.session_state[confirm_key] = True
+                                st.rerun()
+                    
+                    if i < len(positions_df) - 1:
+                        st.divider()
         
         # Performance metrics
         st.markdown("---")
@@ -802,9 +888,444 @@ class TradingDashboard:
             st.metric("vs SMA50", f"{sma50_dist:+.1f}%")
     
     def _render_ml_predictions(self):
-        """Render ML predictions tab (kept from original)"""
-        st.header("🔮 Machine Learning Predictions")
-        st.info("🚧 ML prediction features coming soon! Integration with backtesting engine planned.")
+        """Render ML predictions tab with ensemble forecasting"""
+        st.header("🔮 Machine Learning Price Predictions")
+        st.markdown("*Multi-model ensemble forecasting with confidence intervals and risk assessment*")
+        
+        # Disclaimer
+        st.warning("""
+        ⚠️ **IMPORTANT DISCLAIMER**: ML predictions are probabilistic estimates based on historical patterns.
+        They do NOT guarantee future returns. Always use with proper risk management and stop losses.
+        Past performance is not indicative of future results.
+        """)
+        
+        # Symbol selection
+        watchlist = st.session_state.get('watchlist', self._get_default_watchlist())
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            selected_symbol = st.selectbox(
+                "Select Stock for ML Prediction:",
+                options=watchlist,
+                key='ml_symbol'
+            )
+        
+        with col2:
+            forecast_horizon = st.selectbox(
+                "Forecast Horizon:",
+                options=[7, 14, 30, 60, 90],
+                index=2,  # 30 days default
+                format_func=lambda x: f"{x} days",
+                key='ml_horizon'
+            )
+        
+        if not selected_symbol:
+            st.warning("⚠️ Please select a stock symbol")
+            return
+        
+        # Action buttons
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            train_button = st.button("🎯 Train Models", use_container_width=True)
+        with col2:
+            predict_button = st.button("🔮 Generate Prediction", use_container_width=True)
+        with col3:
+            backtest_button = st.button("📊 Backtest Accuracy", use_container_width=True)
+        with col4:
+            if st.button("💾 Save Models", use_container_width=True):
+                try:
+                    self.ml_predictor._save_models(selected_symbol)
+                    st.success(f"✅ Models saved for {selected_symbol}")
+                except Exception as e:
+                    st.error(f"❌ Save failed: {e}")
+        
+        # Fetch data
+        try:
+            with st.spinner(f"📡 Fetching data for {selected_symbol}..."):
+                # Get historical data (need extra for feature engineering)
+                lookback_days = self.ml_predictor.lookback_days + 100
+                ticker = yf.Ticker(selected_symbol)
+                data = ticker.history(period=f"{lookback_days}d")
+                
+                if data.empty:
+                    st.error(f"❌ No data available for {selected_symbol}")
+                    return
+                
+                st.success(f"✅ Retrieved {len(data)} days of historical data")
+        
+        except Exception as e:
+            st.error(f"❌ Data fetch failed: {e}")
+            return
+        
+        # TRAIN MODELS
+        if train_button:
+            st.markdown("---")
+            st.subheader("🎯 Training ML Models")
+            
+            with st.spinner("🔄 Training ensemble models... This may take 1-2 minutes..."):
+                # Update forecast horizon in config
+                self.ml_predictor.forecast_days = forecast_horizon
+                
+                # Train models
+                training_results = self.ml_predictor.train_models(data, selected_symbol)
+            
+            if training_results['status'] == 'success':
+                st.success(f"✅ Training completed successfully!")
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Training Samples", f"{training_results['training_samples']:,}")
+                with col2:
+                    st.metric("Features Used", training_results['features_count'])
+                with col3:
+                    st.metric("Ensemble R²", f"{training_results['ensemble_r2']:.4f}")
+                with col4:
+                    training_time = datetime.fromisoformat(training_results['training_date'])
+                    st.metric("Training Date", training_time.strftime("%Y-%m-%d %H:%M"))
+                
+                # Individual model metrics
+                st.markdown("### 📊 Individual Model Performance")
+                metrics_df = pd.DataFrame(training_results['individual_metrics']).T
+                metrics_df = metrics_df.round(4)
+                
+                # Format for display
+                display_metrics = metrics_df[['r2', 'rmse', 'mae', 'cv_mean', 'cv_std']].copy()
+                display_metrics.columns = ['R² Score', 'RMSE', 'MAE', 'CV Mean', 'CV Std']
+                
+                st.dataframe(display_metrics, use_container_width=True)
+                
+                # Interpretation
+                st.info("""
+                **Model Performance Guide:**
+                - **R² Score**: Closer to 1.0 = better fit (>0.7 excellent, 0.5-0.7 good, <0.5 poor)
+                - **RMSE/MAE**: Lower = better (error in scaled units)
+                - **CV Mean**: Cross-validation score (consistency across time periods)
+                - **CV Std**: Lower = more stable predictions
+                """)
+            else:
+                st.error(f"❌ Training failed: {training_results.get('error', 'Unknown error')}")
+        
+        # GENERATE PREDICTION
+        if predict_button:
+            st.markdown("---")
+            st.subheader("🔮 Price Prediction")
+            
+            # Check if models exist
+            if not self.ml_predictor.is_trained:
+                # Try to load saved models
+                if not self.ml_predictor._load_models(selected_symbol):
+                    st.warning("⚠️ No trained models found. Please train models first.")
+                    return
+            
+            # Check if retraining needed
+            if self.ml_predictor.needs_retraining():
+                st.info("ℹ️ Models are outdated (>7 days old). Consider retraining for best accuracy.")
+            
+            with st.spinner("🔮 Generating prediction..."):
+                # Update forecast horizon
+                self.ml_predictor.forecast_days = forecast_horizon
+                
+                # Generate prediction
+                prediction = self.ml_predictor.predict_price(data, selected_symbol)
+            
+            if prediction['status'] == 'success':
+                # Display prediction summary
+                current_price = prediction['current_price']
+                predicted_price = prediction['predicted_price']
+                change_pct = prediction['predicted_change_pct']
+                
+                # Color coding
+                if change_pct > 5:
+                    color = "#26a69a"  # Green
+                    emoji = "📈"
+                elif change_pct < -5:
+                    color = "#ef5350"  # Red
+                    emoji = "�"
+                else:
+                    color = "#757575"  # Gray
+                    emoji = "➡️"
+                
+                # Main prediction display
+                st.markdown(f"""
+                <div style='background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 15px; border: 2px solid {color};'>
+                    <h2 style='text-align: center; margin: 0;'>{emoji} {selected_symbol} Prediction</h2>
+                    <div style='display: flex; justify-content: space-around; margin-top: 1.5rem;'>
+                        <div style='text-align: center;'>
+                            <p style='color: #888; margin: 0;'>Current Price</p>
+                            <h3 style='margin: 0.5rem 0;'>${current_price:.2f}</h3>
+                        </div>
+                        <div style='text-align: center;'>
+                            <p style='color: #888; margin: 0;'>Predicted Price ({forecast_horizon} days)</p>
+                            <h3 style='margin: 0.5rem 0; color: {color};'>${predicted_price:.2f}</h3>
+                        </div>
+                        <div style='text-align: center;'>
+                            <p style='color: #888; margin: 0;'>Expected Change</p>
+                            <h3 style='margin: 0.5rem 0; color: {color};'>{change_pct:+.2f}%</h3>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                # Metrics row
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    agreement = prediction['model_agreement']
+                    agreement_color = "#26a69a" if agreement > 70 else "#ffa726" if agreement > 50 else "#ef5350"
+                    st.markdown(f"""
+                    <div style='text-align: center; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 10px;'>
+                        <p style='color: #888; margin: 0; font-size: 0.9rem;'>Model Agreement</p>
+                        <h2 style='margin: 0.5rem 0; color: {agreement_color};'>{agreement:.1f}%</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    ci_lower = prediction['confidence_interval']['lower']
+                    st.metric("Lower Bound (95% CI)", f"${ci_lower:.2f}")
+                
+                with col3:
+                    ci_upper = prediction['confidence_interval']['upper']
+                    st.metric("Upper Bound (95% CI)", f"${ci_upper:.2f}")
+                
+                with col4:
+                    target_date = datetime.fromisoformat(prediction['target_date'])
+                    st.metric("Target Date", target_date.strftime("%Y-%m-%d"))
+                
+                # Trading signal
+                st.markdown("---")
+                st.subheader("📊 AI Trading Signal")
+                
+                signal = self.ml_predictor.generate_trading_signal(prediction)
+                
+                # Signal color mapping
+                signal_colors = {
+                    'STRONG_BUY': '#00ff88',
+                    'BUY': '#26a69a',
+                    'HOLD': '#757575',
+                    'SELL': '#ff6b6b',
+                    'STRONG_SELL': '#ef5350'
+                }
+                
+                signal_color = signal_colors.get(signal['signal'], '#757575')
+                
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    st.markdown(f"""
+                    <div style='text-align: center; padding: 2rem; background: rgba(255,255,255,0.05); border-radius: 15px; border: 3px solid {signal_color};'>
+                        <h1 style='margin: 0; color: {signal_color};'>{signal['signal'].replace('_', ' ')}</h1>
+                        <p style='color: #888; margin: 0.5rem 0;'>Confidence: {signal['confidence']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"""
+                    **Recommended Action:** {signal['action']}
+                    
+                    **Reasoning:** {signal['reasoning']}
+                    
+                    **Risk Assessment:**
+                    - Expected move: {signal['predicted_change']:+.1f}%
+                    - Model consensus: {signal['model_agreement']:.1f}%
+                    - Confidence interval: ${ci_lower:.2f} - ${ci_upper:.2f}
+                    """)
+                
+                # Individual model predictions
+                st.markdown("---")
+                st.subheader("🤖 Individual Model Predictions")
+                
+                models_data = []
+                for model_name, pred in prediction['individual_predictions'].items():
+                    models_data.append({
+                        'Model': model_name.replace('_', ' ').title(),
+                        'Predicted Price': f"${pred['predicted_price']:.2f}",
+                        'Change %': f"{pred['predicted_change_pct']:+.2f}%",
+                        'Weight': f"{self.ml_predictor.model_weights[model_name]*100:.0f}%"
+                    })
+                
+                models_df = pd.DataFrame(models_data)
+                st.dataframe(models_df, use_container_width=True, hide_index=True)
+                
+                # Visualization: Prediction chart
+                st.markdown("---")
+                st.subheader("📈 Price Forecast Visualization")
+                
+                # Create forecast chart
+                fig = go.Figure()
+                
+                # Historical prices (last 60 days)
+                hist_data = data.tail(60).copy()
+                fig.add_trace(go.Scatter(
+                    x=hist_data.index,
+                    y=hist_data['Close'],
+                    mode='lines',
+                    name='Historical Price',
+                    line=dict(color='#1f77b4', width=2)
+                ))
+                
+                # Prediction point
+                pred_date = target_date
+                fig.add_trace(go.Scatter(
+                    x=[data.index[-1], pred_date],
+                    y=[current_price, predicted_price],
+                    mode='lines+markers',
+                    name='Predicted',
+                    line=dict(color=signal_color, width=3, dash='dash'),
+                    marker=dict(size=10)
+                ))
+                
+                # Confidence interval
+                fig.add_trace(go.Scatter(
+                    x=[pred_date, pred_date],
+                    y=[ci_lower, ci_upper],
+                    mode='lines',
+                    name='95% Confidence Interval',
+                    line=dict(color=signal_color, width=6),
+                    opacity=0.3
+                ))
+                
+                fig.update_layout(
+                    title=f"{selected_symbol} - {forecast_horizon}-Day Forecast",
+                    xaxis_title="Date",
+                    yaxis_title="Price ($)",
+                    hovermode='x unified',
+                    template='plotly_dark',
+                    height=500
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Model performance metrics (if available)
+                if self.ml_predictor.model_metrics:
+                    with st.expander("📊 Model Training Metrics"):
+                        metrics_df = pd.DataFrame(self.ml_predictor.model_metrics).T
+                        st.dataframe(metrics_df.round(4), use_container_width=True)
+            
+            else:
+                st.error(f"❌ Prediction failed: {prediction.get('error', 'Unknown error')}")
+        
+        # BACKTEST ACCURACY
+        if backtest_button:
+            st.markdown("---")
+            st.subheader("📊 Prediction Accuracy Backtest")
+            st.info("Testing ML prediction accuracy on historical data using walk-forward analysis...")
+            
+            with st.spinner("🔄 Running backtest... This may take several minutes..."):
+                # Update forecast horizon
+                self.ml_predictor.forecast_days = forecast_horizon
+                
+                # Run backtest
+                backtest_results = self.ml_predictor.backtest_predictions(data, selected_symbol)
+            
+            if backtest_results['status'] == 'success':
+                st.success("✅ Backtest completed!")
+                
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Predictions", backtest_results['total_predictions'])
+                
+                with col2:
+                    direction_acc = backtest_results['direction_accuracy_pct']
+                    delta_color = "normal" if direction_acc >= 60 else "inverse"
+                    st.metric(
+                        "Direction Accuracy",
+                        f"{direction_acc:.1f}%",
+                        delta=f"{direction_acc - 50:.1f}% vs random",
+                        delta_color=delta_color
+                    )
+                
+                with col3:
+                    mae = backtest_results['mean_absolute_error_pct']
+                    st.metric("Mean Absolute Error", f"{mae:.2f}%")
+                
+                with col4:
+                    ci_coverage = backtest_results['confidence_interval_coverage_pct']
+                    st.metric("CI Coverage", f"{ci_coverage:.1f}%", help="95% CI should cover ~95% of actual prices")
+                
+                # Interpretation
+                st.markdown("### 📝 Performance Interpretation")
+                
+                if direction_acc >= 65:
+                    st.success("🎯 **Excellent** - Models consistently predict price direction correctly")
+                elif direction_acc >= 55:
+                    st.info("✅ **Good** - Models show predictive power above random chance")
+                elif direction_acc >= 50:
+                    st.warning("⚠️ **Weak** - Models barely outperform random guessing")
+                else:
+                    st.error("❌ **Poor** - Models may be overfitting or data quality issues")
+                
+                # Historical predictions table
+                if backtest_results.get('predictions'):
+                    st.markdown("### 📋 Recent Predictions (Last 10)")
+                    
+                    pred_data = []
+                    for pred in backtest_results['predictions']:
+                        pred_data.append({
+                            'Date': pred['date'].strftime('%Y-%m-%d') if hasattr(pred['date'], 'strftime') else str(pred['date']),
+                            'Predicted': f"${pred['predicted_price']:.2f}",
+                            'Actual': f"${pred['actual_price']:.2f}",
+                            'Pred Change': f"{pred['predicted_change']:+.1f}%",
+                            'Actual Change': f"{pred['actual_change']:+.1f}%",
+                            'Error': f"{pred['prediction_error']:.1f}%",
+                            'Direction ✓': '✅' if pred['direction_correct'] else '❌',
+                            'In CI': '✅' if pred['in_confidence_interval'] else '❌'
+                        })
+                    
+                    pred_df = pd.DataFrame(pred_data)
+                    st.dataframe(pred_df, use_container_width=True, hide_index=True)
+            
+            else:
+                st.error(f"❌ Backtest failed: {backtest_results.get('error', 'Unknown error')}")
+        
+        # Information section
+        st.markdown("---")
+        with st.expander("ℹ️ About ML Predictions"):
+            st.markdown("""
+            ### 🤖 How It Works
+            
+            **Ensemble Architecture:**
+            - **Random Forest** (35% weight): Captures non-linear patterns and feature interactions
+            - **Gradient Boosting** (30% weight): Sequential error correction for accuracy
+            - **Ridge Regression** (20% weight): Linear trends with L2 regularization
+            - **Support Vector Regression** (15% weight): Complex pattern recognition
+            
+            **Features Engineered (60+ features):**
+            - Price momentum: returns, velocity, acceleration at multiple timeframes
+            - Technical indicators: RSI, MACD, Bollinger Bands, ATR, ADX, etc.
+            - Volume dynamics: OBV, VWAP, volume ratios
+            - Statistical measures: volatility, momentum, high-low ranges
+            - Time-based: day of week, month, quarter effects
+            
+            **Training Process:**
+            1. Engineer 60+ features from historical OHLCV data
+            2. Train each model independently with time-series cross-validation
+            3. Combine predictions using weighted ensemble
+            4. Calculate confidence intervals from model agreement
+            
+            **Best Practices:**
+            - Retrain weekly for fresh patterns
+            - Use 30-day forecast for swing trading
+            - Verify model agreement >60% for confidence
+            - Always use stop losses (models can be wrong!)
+            - Combine with monthly signals for best results
+            
+            **Limitations:**
+            - Cannot predict black swan events
+            - Historical patterns may not repeat
+            - Works best in trending markets
+            - Requires 200+ days of quality data
+            """)
+        
+        st.markdown("---")
+        st.caption("""
+        💡 **Pro Tip**: Combine ML predictions with Monthly Signals (Tab 1) for comprehensive analysis.
+        Use ML for directional bias, Monthly Signals for entry/exit timing.
+        """)
     
     def _render_backtesting(self):
         """Render backtesting tab"""

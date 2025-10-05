@@ -360,6 +360,29 @@ monthly_signals:
   rsi_neutral_range: [40, 60]
   volume_surge_threshold: 1.5
 
+# Machine Learning Predictor
+ml_predictor:
+  lookback_days: 60  # Historical window for training
+  forecast_days: 30  # Prediction horizon (30-day forecast)
+  retrain_interval_days: 7  # Retrain weekly
+  min_training_samples: 200  # Minimum data points required
+  model_dir: ./models  # Model persistence directory
+  
+  # Model ensemble weights (must sum to 1.0)
+  model_weights:
+    random_forest: 0.35
+    gradient_boost: 0.30
+    ridge: 0.20
+    svr: 0.15
+  
+  # Trading signal thresholds
+  signal_thresholds:
+    strong_buy_change: 10  # >10% predicted gain
+    buy_change: 5  # >5% predicted gain
+    sell_change: -5  # <-5% predicted loss
+    strong_sell_change: -10  # <-10% predicted loss
+    min_agreement: 60  # Minimum model agreement %
+
 # Backtesting
 backtesting:
   initial_capital: 10000
@@ -375,6 +398,10 @@ backtesting:
   # Monte Carlo
   monte_carlo_runs: 1000
   confidence_level: 0.95
+  
+  # ML integration
+  use_ml_predictions: true  # Integrate ML signals with monthly signals
+  ml_weight: 0.30  # Weight of ML predictions in combined score
 
 # Database
 database:

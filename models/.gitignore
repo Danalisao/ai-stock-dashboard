@@ -1,0 +1,6 @@
+# Trained ML models (can be large)
+*.pkl
+*.joblib
+
+# Keep directory structure
+!.gitignore

@@ -100,6 +100,89 @@ data/backups/
 └── ... (keeps last 30)
 ```
 
+---
+
+### 4. **train_ml_models.py** - ML Model Training 🤖
+
+Automated training of machine learning prediction models.
+
+**What it does:**
+
+- Trains ensemble ML models (Random Forest, Gradient Boosting, Ridge, SVR)
+- Engineers 60+ features from historical data
+- Saves trained models to disk for fast predictions
+- Validates model performance with cross-validation
+- Optional: Runs accuracy backtests
+- Generates detailed training summary reports
+
+**Run manually (train all watchlist stocks):**
+
+```bash
+python scripts/train_ml_models.py
+```
+
+**Train specific symbols:**
+
+```bash
+python scripts/train_ml_models.py --symbols AAPL MSFT GOOGL NVDA
+```
+
+**Custom forecast horizon:**
+
+```bash
+python scripts/train_ml_models.py --horizon 60  # 60-day forecast
+```
+
+**Force retrain (even if models are recent):**
+
+```bash
+python scripts/train_ml_models.py --force
+```
+
+**Include accuracy backtest:**
+
+```bash
+python scripts/train_ml_models.py --backtest
+```
+
+**Combined example:**
+
+```bash
+python scripts/train_ml_models.py --symbols AAPL TSLA --horizon 30 --force --backtest
+```
+
+**Schedule with cron (weekly, Sunday 3 AM):**
+
+```bash
+crontab -e
+# Add this line:
+0 3 * * 0 cd /path/to/ai-stock-dashboard && source venv/bin/activate && python scripts/train_ml_models.py --force >> logs/ml_training.log 2>&1
+```
+
+**Output:**
+
+- Trained models saved to: `models/{SYMBOL}_models.pkl`
+- Training summary: `logs/ml_training_summary_YYYYMMDD_HHMMSS.txt`
+
+**Features:**
+
+- 🎯 Trains ensemble of 4 ML models per stock
+- 📊 60+ engineered features (price momentum, technical indicators, volume, etc.)
+- ✅ Time-series cross-validation for robustness
+- 💾 Model persistence (saves/loads from disk)
+- 📈 Optional accuracy backtesting
+- 📄 Detailed summary reports
+- ⏭️ Smart skipping (only retrains if models are >7 days old)
+
+**Model Architecture:**
+
+- **Random Forest** (35% weight): Non-linear patterns
+- **Gradient Boosting** (30% weight): Sequential error correction
+- **Ridge Regression** (20% weight): Linear trends with regularization
+- **SVR** (15% weight): Complex pattern recognition
+
+```
+
 **Features:**
 - 💾 Automatic timestamped backups
 - ✅ Integrity verification (SQLite PRAGMA)

@@ -808,6 +808,65 @@ class DatabaseManager:
             self.logger.error(f"Error closing position {position_id}: {e}")
             return False
     
+    def delete_position(self, position_id: int) -> bool:
+        """
+        Delete a trading position (removes from database)
+        
+        Args:
+            position_id: Position ID to delete
+            
+        Returns:
+            True if successful
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Delete the position
+            cursor.execute("DELETE FROM positions WHERE id = ?", (position_id,))
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"Deleted position {position_id}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting position {position_id}: {e}")
+            return False
+    
+    def delete_all_positions(self) -> bool:
+        """
+        Delete all trading positions (removes all from database)
+        
+        Returns:
+            True if successful
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Count positions before deletion
+            cursor.execute("SELECT COUNT(*) FROM positions")
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                self.logger.info("No positions to delete")
+                return True
+            
+            # Delete all positions
+            cursor.execute("DELETE FROM positions")
+            
+            conn.commit()
+            conn.close()
+            
+            self.logger.info(f"Deleted all {count} positions")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting all positions: {e}")
+            return False
+    
     def get_closed_trades(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get closed trades history
