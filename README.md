@@ -1,221 +1,200 @@
-# 🚀 AI-Powered Stock Market Dashboard
+# 💎 AI Stock Trading Dashboard
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-red)](https://streamlit.io/)
+[![Python](https://img.shields.io/badge/Python-3.13-blue)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.50-red)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![GitHub Stars](https://img.shields.io/github/stars/erikthiart/ai-stock-dashboard)](https://github.com/erikthiart/ai-stock-dashboard)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
 
-> **Professional-grade stock analysis with machine learning predictions and real-time technical indicators**
+> **Détecteur de pépites mensuelles avec scoring 0-100, news, sentiment et alertes**
 
-A comprehensive, AI-powered stock market dashboard that combines advanced technical analysis, machine learning price predictions, and intelligent market insights in a beautiful, interactive interface.
+Dashboard professionnel de trading qui scanne automatiquement **120+ actions** et détecte les meilleures opportunités avec signaux décisifs et backtesting complet.
 
 ![Main Dashboard](screenshots/main_dashboard.jpg)
 
-## ✨ Features
+## ✨ Fonctionnalités Principales
 
-### 🤖 **Artificial Intelligence**
-- **Machine Learning Price Prediction** - Random Forest model with 30+ technical features
-- **AI Market Analysis** - Natural language insights based on technical indicators
-- **Feature Importance Analysis** - Understand what drives price movements
-- **Model Performance Metrics** - Train/test accuracy with confidence levels
+### 🎯 **Signaux Mensuels Décisifs**
 
-### 📈 **Advanced Technical Analysis**
-- **Professional Charts** - Multi-panel candlestick charts with technical overlays
-- **20+ Technical Indicators** - RSI, MACD, Bollinger Bands, Moving Averages, Stochastic
-- **Volume Analysis** - Volume trends and confirmation signals
-- **Performance Metrics** - Sharpe ratio, volatility, maximum drawdown
+- **Score 0-100** avec 5 composants pondérés (trend, momentum, sentiment, divergence, volume)
+- **Recommandations claires**: STRONG BUY → STRONG SELL
+- **Paramètres de trading**: Entry, Stop Loss, Take Profit, Risk/Reward
+- **Position sizing** recommandé selon le score
+- **Historique des scores** avec graphiques
 
-### 🎯 **Real-Time Data**
-- **Live Stock Data** - Real-time prices from Yahoo Finance
-- **Multiple Timeframes** - 1M to 5Y analysis periods
-- **Popular Stock Presets** - Quick access to FAANG+ stocks
-- **Custom Symbol Input** - Analyze any publicly traded stock
+### 📰 **News & Sentiment Analysis**
 
-### 🎨 **Professional Interface**
-- **Dark Theme** - Easy on the eyes for extended analysis
-- **Responsive Design** - Works perfectly on desktop and mobile
-- **Interactive Charts** - Zoom, pan, and explore data
-- **Organized Tabs** - Clean separation of different analysis types
+- **Multi-sources**: Yahoo Finance, Finviz, Reddit (r/stocks, r/wallstreetbets)
+- **Sentiment analysis**: VADER + TextBlob + Keywords
+- **Tendances**: Graphiques de sentiment sur 30 jours
+- **100% gratuit** - Aucun API payant requis
 
-![Technical Analysis](screenshots/technical_analysis.jpg)
+### 💼 **Portfolio Tracking**
 
-## 🚀 Quick Start
+- **Suivi positions**: P&L réalisé et non-réalisé
+- **Métriques**: Sharpe Ratio, Sortino, Calmar, Max Drawdown
+- **Win rate** et profit factor
+- **Paper trading** simulator
 
-### Prerequisites
+### 🔙 **Backtesting Engine**
 
-```bash
-Python 3.8 or higher
-```
+- **Tests historiques** de stratégies mensuelles
+- **Performance metrics** complets
+- **Comparaison vs SPY** benchmark
+- **Trade-by-trade** breakdown
+
+### 🚨 **Système d'Alertes**
+
+- **Multi-canaux**: Desktop, Email, Telegram, Audio
+- **9 types d'alertes**: RSI, volume, sentiment, breakouts, etc.
+- **Priorités automatiques**: CRITICAL → LOW
+
+## 🚀 Démarrage Rapide (2 minutes)
 
 ### Installation
 
-1. **Clone the repository**
 ```bash
-git clone https://github.com/erikthiart/ai-stock-dashboard.git
+# 1. Cloner le projet
+git clone https://github.com/yourusername/ai-stock-dashboard.git
 cd ai-stock-dashboard
-```
 
-2. **Install dependencies**
-```bash
+# 2. Créer l'environnement virtuel
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 3. Installer les dépendances
 pip install -r requirements.txt
+
+# 4. Lancer le dashboard
+./run.sh
+# Ou: streamlit run app.py
+
+# 💡 BONUS: Utilisez le Makefile pour des commandes simplifiées!
+make help      # Voir toutes les commandes
+make install   # Installation auto
+make run       # Lancement rapide
 ```
 
-3. **Run the application**
+**Le dashboard s'ouvre à:** <http://localhost:8501>
+
+### Configuration Optionnelle
+
+Pour utiliser Reddit sentiment et alertes Telegram:
+
 ```bash
-streamlit run stock_dashboard.py
+cp .env.example .env
+# Éditer .env avec vos API keys (optionnel)
 ```
 
-4. **Open your browser**
-```
-Navigate to http://localhost:8501
-```
+## 📊 Utilisation
 
-![ML Predictions](screenshots/ml_predictions.jpg)
+### Workflow Quotidien
 
-## 📦 Dependencies
+1. **Matin (8h-9h30)**: Lancer le scanner
 
-```
-streamlit>=1.28.0
-yfinance>=0.2.18
-pandas>=1.5.0
-numpy>=1.24.0
-plotly>=5.15.0
-scikit-learn>=1.3.0
-```
+   ```bash
+   ./run.sh  # Choix 1: Dashboard
+   ```
 
-## 🎮 How to Use
+   - Cliquer "🚀 Lancer Scan Complet"
+   - Analyser les 2-5 pépites détectées (score ≥ 85)
 
-### 1. **Select Your Stock**
-- Choose from popular presets (Apple, Tesla, Google, etc.)
-- Or enter any stock symbol manually
-- Select your preferred analysis timeframe
+2. **Pendant Marché**: Surveiller positions
+   - Onglet "💼 Portfolio" pour P&L temps réel
+   - Alertes automatiques sur mouvements importants
 
-### 2. **Explore the Analysis**
-- **Main Dashboard**: Key metrics and price changes
-- **Technical Charts**: Advanced multi-panel analysis
-- **Performance**: Risk metrics and cumulative returns
-- **AI Predictions**: Machine learning price forecasts
-- **Market Analysis**: AI-generated insights
+3. **Après Marché**: Review et préparation
+   - Onglet "🔙 Backtesting" pour tester stratégies
+   - Ajuster watchlist si nécessaire
 
-### 3. **Understand the Insights**
-- 🟢 **Green indicators**: Bullish signals
-- 🔴 **Red indicators**: Bearish signals  
-- 🟡 **Yellow indicators**: Neutral/mixed signals
-- ⚠️ **Warning indicators**: Overbought/oversold conditions
+### Les 7 Onglets
 
-![Performance Metrics](screenshots/performance_metrics.jpg)
+- **🚨 Monthly Signals**: Score 0-100 et recommandations
+- **📰 News & Sentiment**: Agrégation multi-sources
+- **💼 Portfolio**: Suivi positions et performance
+- **📈 Technical Analysis**: Charts et indicateurs
+- **🔮 ML Predictions**: Prédictions machine learning
+- **🔙 Backtesting**: Tests historiques de stratégies
+- **⚙️ Settings**: Configuration et alertes
 
-## 🧠 Machine Learning Model
+## 🧠 Algorithme de Scoring
 
-Our AI uses a **Random Forest Regressor** trained on 30+ features including:
-
-- **Price-based features**: Returns, volatility, price changes
-- **Technical indicators**: RSI, MACD, moving averages
-- **Volume features**: Volume ratios and trends  
-- **Lag features**: Historical price and volume data
-- **Statistical features**: Rolling means and standard deviations
-
-**Model Performance:**
-- Real-time training on historical data
-- Cross-validation with train/test splits
-- Feature importance analysis
-- Confidence metrics displayed
-
-![AI Analysis](screenshots/ai_analysis.jpg)
-
-## 📊 Technical Indicators
-
-| Indicator | Purpose | Interpretation |
-|-----------|---------|----------------|
-| **RSI** | Momentum | >70 Overbought, <30 Oversold |
-| **MACD** | Trend | Signal line crossovers |
-| **Bollinger Bands** | Volatility | Price vs. bands position |
-| **Moving Averages** | Trend | Price vs. MA relationships |
-| **Stochastic** | Momentum | %K and %D oscillator |
-| **Volume** | Confirmation | Volume vs. average ratios |
-
-## 🎯 Use Cases
-
-### 📈 **For Traders**
-- Quick technical analysis of any stock
-- AI-powered price predictions for next trading day
-- Volume confirmation signals
-- Multiple timeframe analysis
-
-### 💼 **For Investors**
-- Long-term performance metrics
-- Risk assessment (volatility, drawdown)
-- Company fundamental information
-- Market trend analysis
-
-### 🎓 **For Learning**
-- Understanding technical indicators
-- Machine learning in finance
-- Market behavior patterns
-- Professional chart analysis
-
-![Company Info](screenshots/company_info.jpg)
-
-## ⚠️ Disclaimer
-
-**This tool is for educational and informational purposes only.**
-
-- Not financial advice or investment recommendations
-- Past performance doesn't guarantee future results
-- Always do your own research before investing
-- Consider consulting with financial professionals
-- Markets involve risk and potential loss of capital
-
-## 🛠️ Technical Architecture
+Le score 0-100 est calculé avec **5 composants pondérés**:
 
 ```
-├── stock_dashboard.py      # Main application
-├── requirements.txt        # Dependencies
-├── README.md              # Documentation
-└── screenshots/           # UI screenshots
-    ├── main_dashboard.jpg
-    ├── technical_analysis.jpg
-    ├── ml_predictions.jpg
-    ├── performance_metrics.jpg
-    ├── ai_analysis.jpg
-    └── company_info.jpg
+Score = (Trend × 30%) + (Momentum × 20%) + (Sentiment × 25%) + 
+        (Divergence × 15%) + (Volume × 10%)
 ```
 
-## 🤝 Contributing
+**Mapping Score → Action:**
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- **90-100**: STRONG BUY 🟢🟢🟢 (5-10% position)
+- **75-89**: BUY 🟢🟢 (3-5% position)
+- **60-74**: MODERATE BUY 🟢 (1-3% position)
+- **40-59**: HOLD ⚖️ (attendre meilleur setup)
+- **26-39**: MODERATE SELL 🔴
+- **11-25**: SELL 🔴🔴
+- **0-10**: STRONG SELL 🔴🔴🔴
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## 📊 Architecture
+
+```
+ai-stock-dashboard/
+├── app.py                    # Dashboard principal
+├── modules/                  # 10 modules core
+│   ├── monthly_signals.py    # 🎯 Algorithme de scoring
+│   ├── news_aggregator.py    # Yahoo + Finviz + Reddit
+│   ├── sentiment_analyzer.py # VADER + TextBlob
+│   ├── alert_manager.py      # Multi-channel alerts
+│   ├── portfolio_tracker.py  # Performance tracking
+│   ├── backtester.py         # Backtesting engine
+│   └── ...
+├── scripts/                 # Automation
+│   ├── daily_update.py       # Mise à jour quotidienne
+│   ├── realtime_monitor.py   # Monitoring temps réel
+│   └── backup_database.py    # Backups auto
+├── data/                    # SQLite database
+└── config.yaml              # Configuration
+```
+
+## ⚠️ Avertissements Importants
+
+**🚨 CE N'EST PAS UN CONSEIL FINANCIER**
+
+- ❌ Outil à but **éducatif uniquement**
+- ❌ **Aucune garantie** de profit
+- ❌ Trading = **risque de perte**
+- ✅ Utilisez **TOUJOURS** un stop loss
+- ✅ Ne risquez **jamais plus de 2%** par trade
+- ✅ Consultez un **conseiller financier** avant de trader
+
+**Vous êtes seul responsable de vos décisions de trading.**
+
+## 📚 Documentation
+
+- **QUICKSTART.md** - Guide de démarrage rapide (5 minutes)
+- **config.yaml** - Configuration système
+- **.env.example** - Template pour API keys
+- **docs/** - Documentation archivée (historique du projet)
+
+Pour plus d'informations sur les anciennes versions, voir le dossier `docs/`.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - Voir [LICENSE](LICENSE) pour détails.
 
-## 🌟 Acknowledgments
+## 🙏 Remerciements
 
-- **Yahoo Finance** for providing free stock data
-- **Streamlit** for the amazing web framework
-- **Plotly** for interactive visualizations
-- **scikit-learn** for machine learning capabilities
+Conçu avec:
 
-## 📞 Support
-
-If you find this project helpful, please give it a ⭐ on GitHub!
-
-For questions or issues:
-- Open an [Issue](https://github.com/erikthiart/ai-stock-dashboard/issues)
+- **Python 3.13** - Langage principal
+- **Streamlit** - Framework dashboard
+- **yfinance** - Données stocks (gratuit)
+- **VADER** - Analyse de sentiment
+- **PRAW** - Reddit API
+- **Plotly** - Graphiques interactifs
 
 ---
 
-<div align="center">
+**Built with ❤️ for decisive traders**
 
-**Built with ❤️ and Python**
-
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/erikthiart)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/erikthiart)
-
-</div>
+*"In God we trust. All others must bring data."* — W. Edwards Deming

@@ -143,7 +143,7 @@ class StockAnalyzer:
         if len(feature_cols) < 5:
             return None
         
-        X = df[feature_cols].fillna(method='ffill').fillna(method='bfill')
+        X = df[feature_cols].ffill().bfill()
         y = df['Close'].shift(-1)  # Predict next day's close
         
         # Remove last row (no target) and any remaining NaN

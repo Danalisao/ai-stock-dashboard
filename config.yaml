@@ -1,0 +1,427 @@
+# 🔧 AI Stock Dashboard Configuration - TRADING EDITION
+# Version: 3.0 - Professional Trading Tool
+# Updated: October 5, 2025
+# Mode: REAL TRADING SIGNALS (Non-éducatif)
+
+# Watchlist - Professional Trading Portfolio
+watchlist:
+  stocks:
+    # 🏦 Mega Cap Tech (FAANG+)
+    - AAPL   # Apple Inc.
+    - MSFT   # Microsoft
+    - GOOGL  # Alphabet (Google)
+    - AMZN   # Amazon
+    - META   # Meta (Facebook)
+    - NFLX   # Netflix
+    
+    # 💻 Technology & Semiconductors
+    - NVDA   # NVIDIA
+    - AMD    # Advanced Micro Devices
+    - INTC   # Intel
+    - TSM    # Taiwan Semiconductor
+    - AVGO   # Broadcom
+    - QCOM   # Qualcomm
+    - ASML   # ASML Holding
+    - MU     # Micron Technology
+    - AMAT   # Applied Materials
+    
+    # 🚗 Electric Vehicles & Automotive
+    - TSLA   # Tesla
+    - RIVN   # Rivian
+    - LCID   # Lucid Motors
+    - F      # Ford
+    - GM     # General Motors
+    
+    # 💰 Financial Services
+    - JPM    # JPMorgan Chase
+    - BAC    # Bank of America
+    - WFC    # Wells Fargo
+    - GS     # Goldman Sachs
+    - MS     # Morgan Stanley
+    - V      # Visa
+    - MA     # Mastercard
+    - PYPL   # PayPal
+    - SQ     # Block (Square)
+    
+    # 🏥 Healthcare & Biotech
+    - JNJ    # Johnson & Johnson
+    - UNH    # UnitedHealth
+    - PFE    # Pfizer
+    - ABBV   # AbbVie
+    - LLY    # Eli Lilly
+    - MRNA   # Moderna
+    - TMO    # Thermo Fisher
+    
+    # 🛢️ Energy
+    - XOM    # Exxon Mobil
+    - CVX    # Chevron
+    - COP    # ConocoPhillips
+    - SLB    # Schlumberger
+    - NEE    # NextEra Energy
+    
+    # ✈️ Aerospace & Defense
+    - BA     # Boeing
+    - LMT    # Lockheed Martin
+    - RTX    # Raytheon Technologies
+    - NOC    # Northrop Grumman
+    
+    # 🛒 Consumer & Retail
+    - WMT    # Walmart
+    - TGT    # Target
+    - COST   # Costco
+    - HD     # Home Depot
+    - NKE    # Nike
+    - SBUX   # Starbucks
+    - MCD    # McDonald's
+    - DIS    # Disney
+    
+    # 🏢 Industrial & Manufacturing
+    - CAT    # Caterpillar
+    - GE     # General Electric
+    - HON    # Honeywell
+    - MMM    # 3M Company
+    - DE     # Deere & Company
+    
+    # 📱 Communications & Media
+    - T      # AT&T
+    - VZ     # Verizon
+    - TMUS   # T-Mobile
+    - CMCSA  # Comcast
+    
+    # 🏗️ Real Estate & REITs
+    - AMT    # American Tower
+    - PLD    # Prologis
+    - SPG    # Simon Property Group
+    
+    # 🔬 Software & Cloud
+    - CRM    # Salesforce
+    - ORCL   # Oracle
+    - ADBE   # Adobe
+    - NOW    # ServiceNow
+    - SNOW   # Snowflake
+    - PLTR   # Palantir
+    
+    # 🎮 Gaming & Entertainment
+    - EA     # Electronic Arts
+    - ATVI   # Activision Blizzard
+    - TTWO   # Take-Two Interactive
+    - RBLX   # Roblox
+    
+    # 🚀 High Growth & Emerging
+    - SHOP   # Shopify
+    - ABNB   # Airbnb
+    - UBER   # Uber
+    - LYFT   # Lyft
+    - DASH   # DoorDash
+    - COIN   # Coinbase
+    - SOFI   # SoFi Technologies
+    
+    # 🤖 AI & Machine Learning (2025 HOT SECTOR)
+    - AI     # C3.ai
+    - PATH   # UiPath
+    - UPST   # Upstart Holdings
+    - BBAI   # BigBear.ai
+    - SOUN   # SoundHound AI
+    - SMCI   # Super Micro Computer (AI infrastructure)
+    - ARM    # ARM Holdings (AI chips)
+    - IONQ   # IonQ (Quantum computing)
+    
+    # 🔐 Cybersecurity (Growing Threats)
+    - CRWD   # CrowdStrike
+    - ZS     # Zscaler
+    - PANW   # Palo Alto Networks
+    - FTNT   # Fortinet
+    - S      # SentinelOne
+    - OKTA   # Okta
+    - NET    # Cloudflare
+    
+    # 🌱 Clean Energy & ESG (2025 Focus)
+    - ENPH   # Enphase Energy (Solar)
+    - SEDG   # SolarEdge Technologies
+    - RUN    # Sunrun (Residential Solar)
+    - PLUG   # Plug Power (Hydrogen)
+    - BE     # Bloom Energy (Fuel Cells)
+    - FSLR   # First Solar
+    - CSIQ   # Canadian Solar
+    - ICLN   # iShares Clean Energy ETF
+    
+    # 💊 Biotech & Gene Therapy (Breakthrough Year)
+    - CRISPR # CRISPR Therapeutics (Gene Editing)
+    - BEAM   # Beam Therapeutics
+    - EDIT   # Editas Medicine
+    - NTLA   # Intellia Therapeutics
+    - VRTX   # Vertex Pharmaceuticals
+    - REGN   # Regeneron Pharmaceuticals
+    - GILD   # Gilead Sciences
+    - BIIB   # Biogen
+    
+    # 🏭 Rare Earth & Materials (Supply Chain Focus)
+    - ALB    # Albemarle (Lithium)
+    - SQM    # Sociedad Química y Minera (Lithium)
+    - MP     # MP Materials (Rare Earth)
+    - LAC    # Lithium Americas
+    - LTHM   # Livent (Lithium)
+    
+    # �️ Space & Satellite Tech
+    - RKLB   # Rocket Lab USA
+    - SPCE   # Virgin Galactic
+    - ASTS   # AST SpaceMobile (Satellite 5G)
+    
+    # 💳 Fintech & Digital Payments (2025 Evolution)
+    - AFRM   # Affirm (Buy Now Pay Later)
+    - UPST   # Upstart (AI Lending)
+    - NU     # Nu Holdings (Digital Banking)
+    - HOOD   # Robinhood
+    - MARA   # Marathon Digital (Bitcoin Mining)
+    - RIOT   # Riot Platforms (Bitcoin Mining)
+    
+    # 🏠 PropTech & Real Estate Innovation
+    - OPEN   # Opendoor Technologies
+    - RDFN   # Redfin
+    - Z      # Zillow
+    - COMP   # Compass
+    
+    # 🍃 Cannabis & Healthcare Innovation
+    - TLRY   # Tilray Brands
+    - CGC    # Canopy Growth
+    - SNDL   # SUNDIAL
+    
+    # 🚢 Logistics & Supply Chain Tech
+    - CHRW   # C.H. Robinson
+    - XPO    # XPO Logistics
+    - JBHT   # J.B. Hunt Transport
+    
+    # 📡 5G & Telecom Infrastructure
+    - ERIC   # Ericsson
+    - NOK    # Nokia
+    - CSCO   # Cisco Systems
+    
+    # 🎯 Direct-to-Consumer & E-Commerce 2.0
+    - CHWY   # Chewy (Pet E-Commerce)
+    - ETSY   # Etsy (Handmade Marketplace)
+    - W      # Wayfair (Home Goods)
+    - PINS   # Pinterest
+    - SNAP   # Snap Inc.
+    
+    # 🏋️ Fitness & Wellness Tech
+    - PTON   # Peloton Interactive
+    - PLNT   # Planet Fitness
+    - DOCS   # Doximity (Healthcare Network)
+    
+    # 🎬 Streaming & Content Creation
+    - ROKU   # Roku Inc.
+    - SPOT   # Spotify
+    - WBD    # Warner Bros. Discovery
+    - PARA   # Paramount Global
+    
+    # 🔋 Battery Tech & Energy Storage
+    - TSLA   # Tesla (Already listed but key for batteries)
+    - QS     # QuantumScape (Solid-State Batteries)
+    - CHPT   # ChargePoint (EV Charging)
+    - BLNK   # Blink Charging
+    
+    # �📊 Major ETFs (for market context)
+    - SPY    # S&P 500 ETF
+    - QQQ    # Nasdaq 100 ETF
+    - DIA    # Dow Jones ETF
+    - IWM    # Russell 2000 ETF
+    - VTI    # Total Market ETF
+    - ARKK   # ARK Innovation ETF (Disruptive Tech)
+    - ARKW   # ARK Next Gen Internet ETF
+    - ARKG   # ARK Genomic Revolution ETF
+    - BOTZ   # Global Robotics & AI ETF
+    - WCLD   # WisdomTree Cloud Computing ETF
+    
+  max_stocks: 250
+  auto_refresh: true
+  refresh_interval_minutes: 60
+
+# Portfolio Settings
+portfolio:
+  initial_capital: 10000
+  position_size_pct: 5  # % of portfolio per stock
+  max_positions: 10
+  risk_per_trade_pct: 2  # Max loss per trade (% of capital)
+
+# Alert Settings - TRADING MODE
+alerts:
+  enabled: true
+  channels:
+    desktop: true  # Alertes desktop activées
+    email: false  # Configure SMTP pour activer
+    telegram: false  # Configure bot token pour activer
+    audio: true  # Sons d'alerte activés
+  
+  # Alert conditions
+  conditions:
+    price_change_pct: 5  # Alert on 5%+ moves
+    volume_surge_multiplier: 2.0  # Alert on 2x avg volume
+    rsi_oversold: 30
+    rsi_overbought: 70
+    sentiment_shift: 0.3  # Alert on 0.3+ sentiment change
+    news_article_threshold: 10  # Alert on 10+ articles/hour
+  
+  # Priority thresholds
+  priority:
+    critical_score: 85  # Send all alerts for scores > 85
+    high_score: 75
+    medium_score: 60
+    low_score: 40
+
+# Email Configuration (Gmail)
+email:
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  sender_email: ""  # Add your Gmail
+  sender_password: ""  # Add Gmail App Password
+  recipient_email: ""  # Alert destination
+
+# Telegram Configuration
+telegram:
+  bot_token: ""  # Get from BotFather
+  chat_id: ""  # Your Telegram chat ID
+
+# News Settings
+news:
+  enabled: true
+  update_interval_minutes: 60
+  max_articles_per_stock: 50
+  sources:
+    yahoo_finance: true
+    finviz: true
+    reddit: true
+    seeking_alpha: false  # Requires scraping
+  
+  # RSS Feeds
+  rss_feeds:
+    - https://finance.yahoo.com/news/rssindex
+    - https://www.investing.com/rss/news.rss
+  
+  # Reddit subreddits
+  reddit_subs:
+    - stocks
+    - investing
+    - wallstreetbets
+    - Daytrading
+  
+  # Sentiment analysis
+  sentiment:
+    vader_weight: 0.4
+    textblob_weight: 0.3
+    keyword_weight: 0.2
+    social_weight: 0.1
+
+# Trading Rules - STRICT CRITERIA
+trading:
+  # Entry criteria - PÉPITES UNIQUEMENT
+  entry_score_min: 85  # Score minimum 85 (Strong Buy)
+  min_risk_reward: 2.5  # R/R minimum 2.5
+  min_confidence: 0.7  # Confiance minimum 70%
+  min_volume_ratio: 1.3  # Volume 1.3x minimum
+  confirmation_required: true
+  max_hold_days: 90
+  
+  # Exit criteria
+  exit_score_max: 40  # Exit if score drops below
+  stop_loss_pct: 8  # -8% stop loss
+  take_profit_pct: 25  # +25% take profit
+  trailing_stop_pct: 5  # 5% trailing stop
+  
+  # Position sizing
+  kelly_criterion: false  # Use Kelly for position sizing
+  fixed_fractional: true
+  
+  # Risk management
+  max_portfolio_risk_pct: 10  # Max 10% at risk
+  max_correlation: 0.7  # Diversification requirement
+  
+# Monthly Signal Parameters - OPTIMIZED FOR TRADING
+monthly_signals:
+  enabled: true
+  components:
+    trend_weight: 0.30
+    momentum_weight: 0.20
+    sentiment_weight: 0.25
+    divergence_weight: 0.15
+    volume_weight: 0.10
+  
+  # Thresholds - FOCUS ON STRONG SIGNALS ONLY
+  strong_buy: 90  # Pépite exceptionnelle
+  buy: 85  # Pépite forte
+  moderate_buy: 80  # Bonne opportunité
+  hold: 40
+  moderate_sell: 26
+  sell: 11
+  strong_sell: 0
+  
+  # Technical parameters
+  sma_periods: [20, 50, 200]
+  adx_threshold: 25  # Strong trend
+  rsi_neutral_range: [40, 60]
+  volume_surge_threshold: 1.5
+
+# Backtesting
+backtesting:
+  initial_capital: 10000
+  commission_pct: 0.0  # Commission-free brokers
+  slippage_pct: 0.1  # 0.1% slippage
+  position_size_method: "fixed_pct"  # or "kelly"
+  benchmark: "SPY"  # S&P 500 ETF
+  
+  # Walk-forward analysis
+  train_period_months: 12
+  test_period_months: 3
+  
+  # Monte Carlo
+  monte_carlo_runs: 1000
+  confidence_level: 0.95
+
+# Database
+database:
+  path: ./data/stock_data.db
+  backup_enabled: true
+  backup_interval_days: 7
+  backup_path: ./data/backups
+  max_backups: 30
+
+# Dashboard
+dashboard:
+  refresh_interval_seconds: 300  # 5 minutes
+  theme: "dark"
+  show_debug: false
+  cache_data: true
+  cache_ttl_minutes: 30
+  
+  # Chart settings
+  chart_height: 600
+  candlestick_colors:
+    increasing: "#26a69a"
+    decreasing: "#ef5350"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: ./logs/app.log
+  max_log_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# API Rate Limits
+rate_limits:
+  yahoo_finance_delay: 0.5  # seconds between requests
+  reddit_requests_per_minute: 60
+  news_scraping_delay: 1.0
+
+# Advanced Features
+advanced:
+  enable_options_analysis: false
+  enable_crypto: false
+  enable_ai_summaries: false  # Requires GPT API
+  enable_social_trading: false
+  
+# Development
+development:
+  debug_mode: false
+  test_mode: false
+  mock_data: false  # NEVER use in production
+  verbose_logging: false
