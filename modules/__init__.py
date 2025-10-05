@@ -16,6 +16,7 @@ from .utils import (
     is_market_open,
     RateLimiter
 )
+from .pro_mode_guard import ProModeGuard, ValidationResult
 
 __version__ = "2.0.0"
 __all__ = [
@@ -30,5 +31,7 @@ __all__ = [
     'calculate_sharpe_ratio',
     'calculate_max_drawdown',
     'is_market_open',
-    'RateLimiter'
+    'RateLimiter',
+    'ProModeGuard',
+    'ValidationResult'
 ]

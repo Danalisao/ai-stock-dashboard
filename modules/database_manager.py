@@ -30,18 +30,53 @@ class DatabaseManager:
             self.db_path = config.get('path', './data/stock_data.db')
         else:
             self.db_path = './data/stock_data.db'
-        
-        # Ensure data directory exists
-        os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else './data', exist_ok=True)
-        
+
+        # Connection management (needed for in-memory databases)
+        self._shared_connection: Optional[sqlite3.Connection] = None
+        self._use_shared_connection = False
+
+        # Detect in-memory database usage and keep a persistent connection alive
+        if isinstance(self.db_path, str) and (self.db_path == ':memory:' or self.db_path.startswith('file::memory')):
+            self._use_shared_connection = True
+            try:
+                if self.db_path == ':memory:':
+                    self._shared_connection = sqlite3.connect(':memory:', check_same_thread=False)
+                else:
+                    self._shared_connection = sqlite3.connect(self.db_path, uri=True, check_same_thread=False)
+                self._shared_connection.row_factory = sqlite3.Row
+            except Exception as e:
+                self.logger.error(f"Error initializing shared SQLite connection: {e}")
+                raise
+
+        # Ensure data directory exists (skip for pure in-memory databases)
+        if self.db_path != ':memory:' and not self.db_path.startswith('file::memory'):
+            os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else './data', exist_ok=True)
+
         # Initialize database tables
         self._initialize_database()
+
+    def __del__(self):
+        """Ensure shared connections are properly closed when the manager is garbage-collected"""
+        if self._use_shared_connection and self._shared_connection:
+            try:
+                self._shared_connection.close()
+            except Exception:
+                pass
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection"""
+        if self._use_shared_connection:
+            return self._shared_connection
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row  # Enable column access by name
         return conn
+
+    def _close_connection(self, conn: sqlite3.Connection):
+        """Close connection unless using a shared in-memory database"""
+        if self._use_shared_connection:
+            return
+        conn.close()
     
     def _initialize_database(self):
         """Create database tables if they don't exist"""
@@ -198,7 +233,7 @@ class DatabaseManager:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_date ON alerts(created_at)')
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Database initialized successfully: {self.db_path}")
             
@@ -242,7 +277,7 @@ class DatabaseManager:
             df_copy.to_sql('stock_prices', conn, if_exists='append', index=False)
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Saved {len(df_copy)} price records for {symbol}")
             return True
@@ -281,7 +316,7 @@ class DatabaseManager:
             query += " ORDER BY date ASC"
             
             df = pd.read_sql_query(query, conn, params=params)
-            conn.close()
+            self._close_connection(conn)
             
             if df.empty:
                 return None
@@ -331,7 +366,7 @@ class DatabaseManager:
             ))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             return True
             
@@ -363,7 +398,7 @@ class DatabaseManager:
             ''', (symbol, cutoff_date))
             
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -430,7 +465,7 @@ class DatabaseManager:
             ))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Saved monthly score for {symbol}: {score_data.get('total_score')}")
             return True
@@ -461,7 +496,7 @@ class DatabaseManager:
             ''', (symbol,))
             
             row = cursor.fetchone()
-            conn.close()
+            self._close_connection(conn)
             
             return dict(row) if row else None
             
@@ -492,7 +527,7 @@ class DatabaseManager:
             ''', (symbol, days))
             
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -535,7 +570,7 @@ class DatabaseManager:
             ))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             return True
             
@@ -564,7 +599,7 @@ class DatabaseManager:
             
             cursor.execute(query)
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -605,7 +640,7 @@ class DatabaseManager:
             ))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             return True
             
@@ -626,7 +661,7 @@ class DatabaseManager:
             
             cursor.execute("SELECT * FROM watchlist ORDER BY symbol ASC")
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -651,7 +686,7 @@ class DatabaseManager:
             cursor.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol,))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             return True
             
@@ -702,7 +737,7 @@ class DatabaseManager:
             ))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Opened position: {symbol} x{shares} @ ${entry_price}")
             return True
@@ -729,7 +764,7 @@ class DatabaseManager:
             ''')
             
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -799,7 +834,7 @@ class DatabaseManager:
             ''', (position_id,))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Closed position {position_id}: P&L ${pnl:.2f} ({pnl_pct:.2f}%)")
             return True
@@ -826,7 +861,7 @@ class DatabaseManager:
             cursor.execute("DELETE FROM positions WHERE id = ?", (position_id,))
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Deleted position {position_id}")
             return True
@@ -858,7 +893,7 @@ class DatabaseManager:
             cursor.execute("DELETE FROM positions")
             
             conn.commit()
-            conn.close()
+            self._close_connection(conn)
             
             self.logger.info(f"Deleted all {count} positions")
             return True
@@ -888,7 +923,7 @@ class DatabaseManager:
             ''', (limit,))
             
             rows = cursor.fetchall()
-            conn.close()
+            self._close_connection(conn)
             
             return [dict(row) for row in rows]
             
@@ -923,7 +958,7 @@ class DatabaseManager:
             size = cursor.fetchone()[0]
             stats['database_size_mb'] = round(size / (1024 * 1024), 2)
             
-            conn.close()
+            self._close_connection(conn)
             
             return stats
             

@@ -6,7 +6,7 @@ Comprehensive technical analysis indicators for monthly trading signals
 import logging
 import pandas as pd
 import numpy as np
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, Union
 
 
 class TechnicalIndicators:
@@ -138,7 +138,7 @@ class TechnicalIndicators:
     
     # ==================== TREND INDICATORS ====================
     
-    def calculate_adx(self, data: pd.DataFrame, period: int = 14) -> pd.Series:
+    def calculate_adx(self, data: pd.DataFrame, period: int = 14, return_series: bool = False) -> Union[pd.Series, pd.DataFrame]:
         """
         Calculate Average Directional Index (ADX)
         Measures trend strength (not direction)
@@ -146,37 +146,52 @@ class TechnicalIndicators:
         Args:
             data: DataFrame with High, Low, Close
             period: ADX period
+            return_series: When True, returns only the ADX series
             
         Returns:
-            ADX series (0-100, >25 indicates strong trend)
+            ADX data (Series or DataFrame)
         """
-        high = data['High']
-        low = data['Low']
-        close = data['Close']
-        
-        # Calculate True Range
-        tr1 = high - low
-        tr2 = abs(high - close.shift())
-        tr3 = abs(low - close.shift())
-        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-        
-        # Calculate Directional Movement
-        up_move = high - high.shift()
-        down_move = low.shift() - low
-        
-        plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-        minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
-        
-        # Smooth TR and DM
-        atr = pd.Series(tr).rolling(window=period).mean()
-        plus_di = 100 * pd.Series(plus_dm).rolling(window=period).mean() / atr
-        minus_di = 100 * pd.Series(minus_dm).rolling(window=period).mean() / atr
-        
-        # Calculate ADX
-        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-        adx = dx.rolling(window=period).mean()
-        
-        return adx
+        high_col = 'High' if 'High' in data.columns else 'high'
+        low_col = 'Low' if 'Low' in data.columns else 'low'
+        close_col = 'Close' if 'Close' in data.columns else 'close'
+
+        missing_cols = [col for col in (high_col, low_col, close_col) if col not in data.columns]
+        if missing_cols:
+            self.logger.warning(f"ADX calculation skipped due to missing columns: {missing_cols}")
+            adx_series = pd.Series(0, index=data.index, name='ADX', dtype=float)
+        else:
+            high = data[high_col]
+            low = data[low_col]
+            close = data[close_col]
+
+            tr1 = high - low
+            tr2 = (high - close.shift()).abs()
+            tr3 = (low - close.shift()).abs()
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+            up_move = high.diff()
+            down_move = -low.diff()
+
+            plus_dm = pd.Series(np.where((up_move > down_move) & (up_move > 0), up_move, 0), index=data.index)
+            minus_dm = pd.Series(np.where((down_move > up_move) & (down_move > 0), down_move, 0), index=data.index)
+
+            atr = tr.rolling(window=period, min_periods=period).mean()
+            plus_di = 100 * plus_dm.rolling(window=period, min_periods=period).mean() / atr
+            minus_di = 100 * minus_dm.rolling(window=period, min_periods=period).mean() / atr
+
+            di_sum = plus_di + minus_di
+            di_diff = (plus_di - minus_di).abs()
+            dx = 100 * di_diff / di_sum.replace({0: np.nan})
+            adx_calc = dx.rolling(window=period, min_periods=period).mean()
+
+            adx_series = adx_calc.fillna(0).rename('ADX')
+
+        if return_series:
+            return adx_series
+
+        result = data.copy()
+        result['ADX'] = adx_series
+        return result
     
     def calculate_parabolic_sar(self, data: pd.DataFrame, af_start: float = 0.02, 
                                  af_increment: float = 0.02, af_max: float = 0.2) -> pd.Series:
@@ -295,16 +310,17 @@ class TechnicalIndicators:
     
     # ==================== VOLUME INDICATORS ====================
     
-    def calculate_obv(self, data: pd.DataFrame) -> pd.Series:
+    def calculate_obv(self, data: pd.DataFrame, return_series: bool = False) -> Union[pd.Series, pd.DataFrame]:
         """
         Calculate On-Balance Volume (OBV)
         Cumulative volume indicator
         
         Args:
             data: DataFrame with Close and Volume
+            return_series: When True, returns only the OBV series
             
         Returns:
-            OBV series
+            OBV data (Series or DataFrame)
         """
         # Handle both 'Volume' and 'volume' column names
         volume_col = 'Volume' if 'Volume' in data.columns else 'volume'
@@ -312,20 +328,26 @@ class TechnicalIndicators:
         
         if volume_col not in data.columns or close_col not in data.columns:
             # Return zeros if required columns don't exist
-            return pd.Series(0, index=data.index, dtype=float)
-        
-        obv = pd.Series(index=data.index, dtype=float)
-        obv.iloc[0] = data[volume_col].iloc[0]
-        
-        for i in range(1, len(data)):
-            if data[close_col].iloc[i] > data[close_col].iloc[i-1]:
-                obv.iloc[i] = obv.iloc[i-1] + data[volume_col].iloc[i]
-            elif data[close_col].iloc[i] < data[close_col].iloc[i-1]:
-                obv.iloc[i] = obv.iloc[i-1] - data[volume_col].iloc[i]
-            else:
-                obv.iloc[i] = obv.iloc[i-1]
-        
-        return obv
+            obv_series = pd.Series(0, index=data.index, dtype=float, name='OBV')
+        else:
+            obv = pd.Series(0.0, index=data.index, name='OBV')
+            if not data.empty:
+                obv.iloc[0] = data[volume_col].iloc[0]
+                for i in range(1, len(data)):
+                    if data[close_col].iloc[i] > data[close_col].iloc[i-1]:
+                        obv.iloc[i] = obv.iloc[i-1] + data[volume_col].iloc[i]
+                    elif data[close_col].iloc[i] < data[close_col].iloc[i-1]:
+                        obv.iloc[i] = obv.iloc[i-1] - data[volume_col].iloc[i]
+                    else:
+                        obv.iloc[i] = obv.iloc[i-1]
+            obv_series = obv
+
+        if return_series:
+            return obv_series
+
+        result = data.copy()
+        result['OBV'] = obv_series
+        return result
     
     def calculate_vwap(self, data: pd.DataFrame) -> pd.Series:
         """
@@ -606,7 +628,7 @@ class TechnicalIndicators:
             
             # ADX for trend strength
             try:
-                data['ADX'] = self.calculate_adx(data)
+                data['ADX'] = self.calculate_adx(data, return_series=True)
             except Exception as e:
                 self.logger.warning(f"ADX calculation failed: {e}")
                 data['ADX'] = 20  # Neutral value
@@ -650,7 +672,7 @@ class TechnicalIndicators:
             
             # Volume indicators
             try:
-                data['OBV'] = self.calculate_obv(data)
+                data['OBV'] = self.calculate_obv(data, return_series=True)
             except Exception as e:
                 self.logger.warning(f"OBV calculation failed: {e}")
                 data['OBV'] = 0

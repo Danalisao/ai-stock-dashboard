@@ -1,7 +1,11 @@
-# 🔧 AI Stock Dashboard Configuration - TRADING EDITION
-# Version: 3.0 - Professional Trading Tool
+# 🔧 PROFESSIONAL TRADING SYSTEM CONFIGURATION
+# Version: 4.0 - INSTITUTIONAL GRADE
 # Updated: October 5, 2025
-# Mode: REAL TRADING SIGNALS (Non-éducatif)
+# Mode: PROFESSIONAL TRADING ONLY
+
+# ⚠️ NOTICE: This is a professional trading system
+# All parameters are optimized for institutional-grade performance
+# Educational disclaimers have been removed - users are responsible for their trading decisions
 
 # Watchlist - Professional Trading Portfolio
 watchlist:
@@ -334,6 +338,16 @@ trading:
   # Risk management
   max_portfolio_risk_pct: 10  # Max 10% at risk
   max_correlation: 0.7  # Diversification requirement
+
+# Professional Mode Enforcement - ALWAYS ENABLED
+professional_mode:
+  enabled: true
+  require_alerts: true
+  min_watchlist_size: 25
+  max_data_staleness_minutes: 240  # 4 heures maximum sans nouvelle donnée
+  weekend_extension_minutes: 2880  # Tolérance supplémentaire le week-end (48h)
+  permit_debug_logging: false
+  force_professional_mode: true  # Cannot be disabled
   
 # Monthly Signal Parameters - OPTIMIZED FOR TRADING
 monthly_signals:
@@ -446,9 +460,10 @@ advanced:
   enable_ai_summaries: false  # Requires GPT API
   enable_social_trading: false
   
-# Development
+# Production Mode - Development features disabled
 development:
   debug_mode: false
   test_mode: false
-  mock_data: false  # NEVER use in production
+  mock_data: false  # PERMANENTLY DISABLED
   verbose_logging: false
+  production_only: true

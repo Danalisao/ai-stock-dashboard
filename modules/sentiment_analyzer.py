@@ -95,7 +95,9 @@ class SentimentAnalyzer:
         sentiment_label = self._get_sentiment_label(sentiment_score)
         
         # Add to article
-        article['sentiment_score'] = round(sentiment_score, 3)
+        rounded_sentiment = round(sentiment_score, 3)
+        article['sentiment_score'] = rounded_sentiment
+        article['sentiment'] = rounded_sentiment  # Backward compatibility for legacy consumers
         article['sentiment_label'] = sentiment_label
         article['vader_score'] = round(vader_score, 3)
         article['textblob_score'] = round(textblob_score, 3)
