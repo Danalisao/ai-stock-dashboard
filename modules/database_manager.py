@@ -848,7 +848,7 @@ class DatabaseManager:
         Delete a trading position (removes from database)
         
         Args:
-            position_id: Position ID to delete
+            position_id: Position ID
             
         Returns:
             True if successful
@@ -868,6 +868,64 @@ class DatabaseManager:
             
         except Exception as e:
             self.logger.error(f"Error deleting position {position_id}: {e}")
+            return False
+    
+    def save_opportunity(self, symbol: str, confidence: int, risk_level: str,
+                        reasoning: str, catalysts: list = None, 
+                        source: str = 'gemini_ai', alert_sent: bool = False) -> bool:
+        """
+        Save detected trading opportunity to database
+        
+        Args:
+            symbol: Stock symbol
+            confidence: Confidence score (0-100)
+            risk_level: Risk level (low, medium, high)
+            reasoning: AI reasoning for opportunity
+            catalysts: List of catalysts
+            source: Detection source
+            alert_sent: Whether alert was sent
+            
+        Returns:
+            True if successful
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Create table if not exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS opportunities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    confidence INTEGER,
+                    risk_level TEXT,
+                    reasoning TEXT,
+                    catalysts TEXT,
+                    source TEXT,
+                    alert_sent BOOLEAN,
+                    created_at TEXT,
+                    UNIQUE(symbol, created_at)
+                )
+            ''')
+            
+            # Save opportunity
+            catalysts_str = ','.join(catalysts) if catalysts else ''
+            now = datetime.now().isoformat()
+            
+            cursor.execute('''
+                INSERT OR REPLACE INTO opportunities 
+                (symbol, confidence, risk_level, reasoning, catalysts, source, alert_sent, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (symbol, confidence, risk_level, reasoning, catalysts_str, source, alert_sent, now))
+            
+            conn.commit()
+            self._close_connection(conn)
+            
+            self.logger.info(f"Saved opportunity: {symbol} ({risk_level} risk, {confidence}% confidence)")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error saving opportunity for {symbol}: {e}")
             return False
     
     def delete_all_positions(self) -> bool:
