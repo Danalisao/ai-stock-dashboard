@@ -5,9 +5,113 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
 
-> **Détecteur de pépites mensuelles avec scoring 0-100, news, sentiment et alertes**
+> **Plateforme de trading professionnel avec IA - Détection d'opportunités explosives 24/7**
 
-Dashboard professionnel de trading qui scanne automatiquement **120+ actions** et détecte les meilleures opportunités avec signaux décisifs et backtesting complet.
+Dashboard professionnel de trading qui scanne automatiquement **250+ actions** et détecte les meilleures opportunités avec signaux décisifs, alertes instantanées et monitoring prémarché.
+
+![Main Dashboard](screenshots/main_dashboard.jpg)
+
+---
+
+## 🚀 SETUP PROFESSIONNEL DE TRADING
+
+### **Nouveau : Monitoring 24/7 pour Trader Opportuniste**
+
+Ce système est conçu pour les traders professionnels qui veulent **saisir TOUTES les opportunités explosives**, particulièrement en prémarché (4h-9h30 AM ET) quand les mouvements les plus importants se produisent.
+
+**🎯 Caractéristiques professionnelles :**
+
+- **🌅 Détection Prémarché** : Earnings, FDA, M&A, guidance AVANT l'ouverture
+- **💎 Pump Stocks** : Détection automatique volume surge + price spike
+- **🤖 IA Gemini** : Découverte d'opportunités cachées par intelligence artificielle
+- **⚡ Alertes Instantanées** : Telegram (< 5 sec), Email, Desktop, Audio
+- **🔄 Monitoring 24/7** : Le système tourne en continu et vous alerte automatiquement
+- **📊 Control Center** : Dashboard de contrôle pour gérer tous les monitors
+
+### **Démarrage Rapide Professionnel**
+
+#### **Option 1 : Lancement Automatique (RECOMMANDÉ)**
+
+**Windows :**
+```bash
+# Double-cliquer sur
+launch_pro_trading.bat
+```
+
+**Linux/Mac :**
+```bash
+chmod +x launch_pro_trading.sh
+./launch_pro_trading.sh
+```
+
+#### **Option 2 : Control Center (Interface Graphique)**
+
+```bash
+streamlit run scripts/control_center.py
+```
+
+Le Control Center vous permet de :
+- ✅ Démarrer/arrêter tous les monitors en un clic
+- 📊 Voir les alertes en temps réel
+- ⚙️ Configurer les canaux d'alerte
+- 📈 Consulter les statistiques de performance
+
+#### **Option 3 : Monitoring Direct 24/7**
+
+```bash
+# Mode standard (seuils équilibrés)
+python scripts/pro_trader_monitor.py
+
+# Mode agressif (plus d'alertes, seuils plus bas)
+python scripts/pro_trader_monitor.py --aggressive
+
+# Prémarché uniquement (4h-9h30 AM ET)
+python scripts/pro_trader_monitor.py --premarket-only
+```
+
+### **Configuration Obligatoire (5 minutes)**
+
+Pour recevoir les alertes instantanées, configurez **au minimum Telegram** :
+
+1. **Créer `.env` depuis le template** :
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configurer Telegram** (PRIORITAIRE - alertes < 5 sec) :
+   - Créer un bot : chercher `@BotFather` sur Telegram
+   - Obtenir le token : `/newbot`
+   - Obtenir votre chat ID : https://api.telegram.org/bot<TOKEN>/getUpdates
+   - Ajouter dans `.env` :
+     ```bash
+     TELEGRAM_BOT_TOKEN=123456789:ABC...
+     TELEGRAM_CHAT_ID=987654321
+     ```
+
+3. **Configurer Gemini AI** (OPPORTUNITÉS) :
+   - Obtenir une clé : https://aistudio.google.com/app/apikey
+   - Ajouter dans `.env` :
+     ```bash
+     GEMINI_API_KEY=AIzaSy...
+     ```
+
+4. **Tester les alertes** :
+   ```bash
+   python -c "from modules.alert_manager import AlertManager; from modules.utils import load_config; print(AlertManager(load_config()).test_alerts())"
+   ```
+
+### **Documentation Complète**
+
+📖 **[Guide Setup Professionnel Complet](docs/PRO_TRADER_SETUP.md)** ⭐ NOUVEAU
+
+- Installation détaillée
+- Configuration des alertes (Telegram, Email, Audio)
+- Déploiement 24/7 (cron, Task Scheduler)
+- Optimisation et personnalisation
+- Stratégies de trading recommandées
+- Dépannage
+
+---
 
 ![Main Dashboard](screenshots/main_dashboard.jpg)
 

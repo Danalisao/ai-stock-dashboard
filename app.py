@@ -487,8 +487,10 @@ class TradingDashboard:
         st.sidebar.markdown(f"### {status_icon} {status_text}")
         
         # Main tabs
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-            "🚨 Monthly Signals",
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+            "🚨 Live Alerts",
+            "⚡ Intraday Trading",
+            "📊 Monthly Signals",
             "📰 News & Sentiment", 
             "💼 Portfolio",
             "📈 Technical Analysis",
@@ -498,24 +500,30 @@ class TradingDashboard:
         ])
         
         with tab1:
-            self._render_monthly_signals()
+            self._render_live_alerts()
         
         with tab2:
-            self._render_news_sentiment()
+            self._render_intraday_trading()
         
         with tab3:
-            self._render_portfolio()
+            self._render_monthly_signals()
         
         with tab4:
-            self._render_technical_analysis()
+            self._render_news_sentiment()
         
         with tab5:
-            self._render_ml_predictions()
+            self._render_portfolio()
         
         with tab6:
-            self._render_backtesting()
+            self._render_technical_analysis()
         
         with tab7:
+            self._render_ml_predictions()
+        
+        with tab8:
+            self._render_backtesting()
+        
+        with tab9:
             self._render_settings()
         
         # Footer
@@ -595,6 +603,493 @@ class TradingDashboard:
                     st.info("No recent alerts")
         
         return symbol, period
+    
+    def _render_live_alerts(self):
+        """Render live alerts and monitoring status - NEW TAB"""
+        st.header("🚨 Live Alerts & Real-Time Monitoring")
+        
+        # Status row
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            premarket_running = self._check_monitor_status('premarket_catalyst_scanner')
+            status = "🟢 ONLINE" if premarket_running else "🔴 OFFLINE"
+            st.metric("🌅 Premarket Scanner", status)
+            if not premarket_running:
+                if st.button("▶️ Start Premarket"):
+                    st.info("Launching premarket scanner...")
+                    st.code("python scripts/launch_trading_system.py --premarket")
+        
+        with col2:
+            realtime_running = self._check_monitor_status('realtime_pump_scanner')
+            status = "🟢 ONLINE" if realtime_running else "🔴 OFFLINE"
+            st.metric("💎 Realtime Scanner", status)
+            if not realtime_running:
+                if st.button("▶️ Start Realtime"):
+                    st.info("Launching realtime scanner...")
+                    st.code("python scripts/launch_trading_system.py --realtime")
+        
+        with col3:
+            market_open = is_market_open()
+            market_status = "🟢 OPEN" if market_open else "🔴 CLOSED"
+            st.metric("📊 Market Status", market_status)
+        
+        with col4:
+            # Count today's alerts
+            alerts = self.db.get_recent_alerts(limit=1000)
+            today_alerts = [a for a in alerts if a['timestamp'].startswith(datetime.now().strftime('%Y-%m-%d'))]
+            st.metric("📬 Alerts Today", len(today_alerts))
+        
+        st.divider()
+        
+        # Recent alerts section
+        st.subheader("📋 Recent Alerts (Last 24 hours)")
+        
+        # Fetch alerts
+        recent_alerts = self.db.get_recent_alerts(limit=50)
+        
+        if not recent_alerts:
+            st.info("No recent alerts. The monitoring system will alert you when opportunities are detected.")
+            st.info("💡 **Tip**: Start the monitoring system to receive real-time alerts")
+            return
+        
+        # Filter controls
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            priority_filter = st.multiselect(
+                "Filter by Priority",
+                options=['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
+                default=['CRITICAL', 'HIGH']
+            )
+        
+        with col2:
+            alert_type_filter = st.multiselect(
+                "Filter by Type",
+                options=['PREMARKET_CATALYST', 'PUMP_STOCK', 'MONTHLY_SIGNAL', 'PRICE_MOVE', 'VOLUME_SURGE'],
+                default=None
+            )
+        
+        with col3:
+            show_count = st.slider("Show alerts", min_value=10, max_value=100, value=20, step=10)
+        
+        # Filter alerts
+        filtered_alerts = recent_alerts
+        
+        if priority_filter:
+            filtered_alerts = [a for a in filtered_alerts if a.get('priority') in priority_filter]
+        
+        if alert_type_filter:
+            filtered_alerts = [a for a in filtered_alerts if a.get('alert_type') in alert_type_filter]
+        
+        filtered_alerts = filtered_alerts[:show_count]
+        
+        # Display alerts
+        st.write(f"**Showing {len(filtered_alerts)} alerts**")
+        
+        for alert in filtered_alerts:
+            priority = alert.get('priority', 'MEDIUM')
+            alert_type = alert.get('alert_type', 'UNKNOWN')
+            symbol = alert.get('symbol', 'N/A')
+            message = alert.get('message', '')
+            timestamp = alert.get('timestamp', '')
+            score = alert.get('score', 0)
+            
+            # Color coding
+            if priority == 'CRITICAL':
+                border_color = "#ff0000"
+                emoji = "🔴"
+            elif priority == 'HIGH':
+                border_color = "#ff9500"
+                emoji = "🟡"
+            elif priority == 'MEDIUM':
+                border_color = "#00a8ff"
+                emoji = "🔵"
+            else:
+                border_color = "#888888"
+                emoji = "⚪"
+            
+            # Display alert card
+            with st.container():
+                st.markdown(f"""
+                <div style="
+                    border-left: 4px solid {border_color};
+                    padding: 1rem;
+                    margin: 0.5rem 0;
+                    background: rgba(255,255,255,0.03);
+                    border-radius: 5px;
+                ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 1.1rem;">{emoji} {symbol} - {alert_type}</strong>
+                            <span style="color: #888; margin-left: 1rem; font-size: 0.9rem;">{timestamp}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 1.2rem; font-weight: bold;">Score: {score:.1f}</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 0.5rem; white-space: pre-wrap; font-family: monospace; font-size: 0.9rem;">
+                        {message}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # Alert statistics
+        st.subheader("📊 Alert Statistics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            critical_count = sum(1 for a in recent_alerts if a.get('priority') == 'CRITICAL')
+            st.metric("🔴 Critical", critical_count)
+        
+        with col2:
+            high_count = sum(1 for a in recent_alerts if a.get('priority') == 'HIGH')
+            st.metric("🟡 High", high_count)
+        
+        with col3:
+            medium_count = sum(1 for a in recent_alerts if a.get('priority') == 'MEDIUM')
+            st.metric("🔵 Medium", medium_count)
+        
+        with col4:
+            unique_symbols = len(set(a.get('symbol') for a in recent_alerts))
+            st.metric("📊 Unique Symbols", unique_symbols)
+        
+        # Alert timeline chart
+        if recent_alerts:
+            st.subheader("📈 Alert Timeline (Last 24h)")
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(recent_alerts)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df['hour'] = df['timestamp'].dt.hour
+            
+            # Group by hour
+            hourly_counts = df.groupby('hour').size().reindex(range(24), fill_value=0)
+            
+            # Create bar chart
+            fig = px.bar(
+                x=hourly_counts.index,
+                y=hourly_counts.values,
+                labels={'x': 'Hour of Day', 'y': 'Number of Alerts'},
+                title='Alerts Distribution by Hour'
+            )
+            fig.update_traces(marker_color='#00ff88')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # Quick actions
+        st.subheader("⚡ Quick Actions")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🎛️ Open Control Center"):
+                st.info("Opening Control Center...")
+                st.code("streamlit run scripts/control_center.py --server.port 8502")
+        
+        with col2:
+            if st.button("🧪 Test Alert System"):
+                st.info("Testing alert channels...")
+                try:
+                    results = self.alert_manager.test_alerts()
+                    st.success("**Test Results:**")
+                    for channel, success in results.items():
+                        status = "✅" if success else "❌"
+                        st.write(f"{status} {channel.upper()}")
+                except Exception as e:
+                    st.error(f"Test failed: {e}")
+        
+        with col3:
+            if st.button("🔄 Refresh Alerts"):
+                st.rerun()
+    
+    def _check_monitor_status(self, script_name: str) -> bool:
+        """Check if a monitor script is running"""
+        try:
+            import psutil
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if cmdline and any(script_name in arg for arg in cmdline):
+                        return True
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            return False
+        except:
+            return False
+    
+    def _render_intraday_trading(self):
+        """Render intraday trading tab"""
+        st.header("⚡ Intraday Trading - Système Automatique")
+        
+        st.markdown("""
+        ### 🚀 Trading Intraday 100% Automatique
+        
+        Recevez des **notifications Telegram** pour chaque opportunité de trading intraday :
+        - 📈 **Entry signals** avec prix, stop loss, target
+        - 💰 **Exit signals** avec profit/perte
+        - 🔔 **Auto-close** avant 16h (pas de risque overnight)
+        
+        **Heures actives**: 9:30-16:00 ET (lundi-vendredi)
+        """)
+        
+        # Status du système
+        st.markdown("---")
+        st.subheader("📊 Status du Système")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        # Vérifier si le scanner tourne
+        with col1:
+            intraday_running = self._check_monitor_status("intraday_trader.py")
+            if intraday_running:
+                st.success("✅ **Scanner Intraday**")
+                st.write("Status: 🟢 ONLINE")
+            else:
+                st.error("❌ **Scanner Intraday**")
+                st.write("Status: 🔴 OFFLINE")
+                if st.button("▶️ Démarrer", key="start_intraday"):
+                    st.info("Exécutez: `python scripts/intraday_trader.py`")
+        
+        with col2:
+            # Heures de marché
+            import pytz
+            et_tz = pytz.timezone('America/New_York')
+            now_et = datetime.now(et_tz)
+            is_market_hours = (now_et.weekday() < 5 and 
+                             now_et.hour >= 9 and 
+                             (now_et.hour < 16 or (now_et.hour == 9 and now_et.minute >= 30)))
+            
+            if is_market_hours:
+                st.success("✅ **Heures de Marché**")
+                st.write(f"🕐 {now_et.strftime('%H:%M:%S ET')}")
+            else:
+                st.warning("⏰ **Hors Heures Marché**")
+                st.write(f"🕐 {now_et.strftime('%H:%M:%S ET')}")
+        
+        with col3:
+            # Alertes aujourd'hui
+            try:
+                alerts = self.db_manager.get_active_alerts()
+                today_alerts = [a for a in alerts if 
+                              'intraday' in a.get('alert_type', '').lower() and
+                              datetime.fromisoformat(a.get('created_at', '')).date() == datetime.now().date()]
+                
+                st.metric("📱 **Alertes Aujourd'hui**", len(today_alerts))
+            except:
+                st.metric("📱 **Alertes Aujourd'hui**", "N/A")
+        
+        # Alertes récentes
+        st.markdown("---")
+        st.subheader("📱 Alertes Intraday Récentes")
+        
+        try:
+            alerts = self.db_manager.get_active_alerts()
+            intraday_alerts = [a for a in alerts if 'intraday' in a.get('alert_type', '').lower()]
+            intraday_alerts = sorted(intraday_alerts, 
+                                   key=lambda x: x.get('created_at', ''), 
+                                   reverse=True)[:20]
+            
+            if intraday_alerts:
+                for alert in intraday_alerts:
+                    symbol = alert.get('symbol', 'N/A')
+                    alert_type = alert.get('alert_type', '')
+                    priority = alert.get('priority', 'MEDIUM')
+                    message = alert.get('message', '')
+                    created_at = alert.get('created_at', '')
+                    
+                    # Couleur selon priorité
+                    if priority == 'CRITICAL':
+                        color = "#ff0000"
+                        emoji = "🚨"
+                    elif priority == 'HIGH':
+                        color = "#ff9500"
+                        emoji = "🔥"
+                    elif priority == 'MEDIUM':
+                        color = "#00a8ff"
+                        emoji = "📊"
+                    else:
+                        color = "#95a5a6"
+                        emoji = "ℹ️"
+                    
+                    # Type d'alerte
+                    if "ENTRY" in alert_type:
+                        type_emoji = "🟢"
+                        type_text = "ENTRY"
+                    elif "EXIT" in alert_type:
+                        type_emoji = "🔴"
+                        type_text = "EXIT"
+                    else:
+                        type_emoji = "📊"
+                        type_text = "INFO"
+                    
+                    # Afficher alerte
+                    with st.container():
+                        st.markdown(f"""
+                        <div style="border-left: 4px solid {color}; padding: 10px; margin: 10px 0; background-color: rgba(255,255,255,0.05);">
+                            <div style="display: flex; justify-content: space-between;">
+                                <div>
+                                    <strong>{emoji} {symbol}</strong> - {type_emoji} {type_text}
+                                    <br>
+                                    <small style="color: #888;">{created_at}</small>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.8em;">
+                                        {priority}
+                                    </span>
+                                </div>
+                            </div>
+                            <div style="margin-top: 8px;">
+                                {message}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.info("Aucune alerte intraday récente")
+                st.markdown("""
+                **Pour recevoir des alertes** :
+                1. Configurez Telegram dans `.env`
+                2. Lancez : `python scripts/intraday_trader.py`
+                3. Surveillez votre téléphone pendant 9:30-16:00 ET
+                """)
+        
+        except Exception as e:
+            st.error(f"Erreur lors de la récupération des alertes: {e}")
+        
+        # Configuration rapide
+        st.markdown("---")
+        st.subheader("⚙️ Configuration Rapide")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **Lancement Standard** (recommandé) :
+            ```bash
+            python scripts/intraday_trader.py
+            ```
+            
+            **Critères** :
+            - Prix: +3% minimum
+            - Volume: 5x average
+            - Score: 75/100 minimum
+            - Scan: 30 secondes
+            
+            **Résultat** : 3-7 alertes/jour
+            """)
+        
+        with col2:
+            st.markdown("""
+            **Lancement Agressif** (plus d'alertes) :
+            ```bash
+            python scripts/intraday_trader.py --aggressive
+            ```
+            
+            **Critères** :
+            - Prix: +2% minimum
+            - Volume: 3x average
+            - Score: 70/100 minimum
+            - Scan: 15 secondes
+            
+            **Résultat** : 10-20 alertes/jour
+            """)
+        
+        # Documentation
+        st.markdown("---")
+        st.subheader("📚 Documentation")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📖 Guide Complet", use_container_width=True):
+                st.info("Voir: `docs/INTRADAY_TRADING_GUIDE.md`")
+        
+        with col2:
+            if st.button("🧪 Tester le Système", use_container_width=True):
+                st.info("Exécutez: `python scripts/test_intraday_system.py`")
+        
+        with col3:
+            if st.button("🤖 Auto-Start Config", use_container_width=True):
+                st.info("Voir section Task Scheduler dans la documentation")
+        
+        # Watchlist intraday
+        st.markdown("---")
+        st.subheader("📋 Watchlist Intraday")
+        
+        watchlist_intraday = [
+            "AAPL", "TSLA", "NVDA", "AMD", "MSFT", "GOOGL", "META", "AMZN",
+            "GME", "AMC", "PLTR", "SOFI", "RIOT", "MARA",
+            "SPY", "QQQ", "IWM",
+            "NIO", "LCID", "RIVN", "F", "BAC", "T", "INTC"
+        ]
+        
+        cols = st.columns(6)
+        for idx, symbol in enumerate(watchlist_intraday):
+            with cols[idx % 6]:
+                st.button(symbol, key=f"watch_{symbol}", use_container_width=True)
+        
+        st.info("💡 **Personnaliser** : Éditez `config.yaml` → `watchlist.intraday`")
+        
+        # Types de setups
+        st.markdown("---")
+        st.subheader("🎯 Types de Setups Détectés")
+        
+        setup_col1, setup_col2 = st.columns(2)
+        
+        with setup_col1:
+            st.markdown("""
+            **1. Opening Range Breakout (ORB)**
+            - Prix casse le range des 5 premières minutes
+            - Confirmation: Volume élevé
+            - Meilleur timing: 9:35-10:00 AM
+            
+            **2. Momentum Breakout**
+            - Prix explose avec volume massif
+            - MACD bullish
+            - Momentum > 80/100
+            
+            **3. VWAP Reversal**
+            - Prix rebondit autour VWAP
+            - RSI < 35 (bullish) ou > 65 (bearish)
+            - Confirmation: Volume
+            """)
+        
+        with setup_col2:
+            st.markdown("""
+            **4. Volume Surge Play**
+            - Volume anormal (5x+)
+            - Mouvement prix significatif
+            - News catalyst possible
+            
+            **5. Bollinger Band Breakout**
+            - Prix dépasse BB upper/lower
+            - Volatilité confirmée
+            - Squeeze pattern
+            """)
+        
+        # Disclaimer
+        st.markdown("---")
+        st.warning("""
+        ⚠️ **DISCLAIMER IMPORTANT**
+        
+        Le trading intraday comporte des **risques élevés de perte en capital**.
+        - Ce système est fourni **à titre éducatif uniquement**
+        - Ce n'est **PAS** un conseil financier
+        - Les performances passées ne garantissent **PAS** les résultats futurs
+        - **Ne tradez jamais** avec de l'argent que vous ne pouvez pas perdre
+        - Consultez un **conseiller financier agréé**
+        
+        **Recommandations** :
+        - ✅ Commencez en **paper trading** (simulation)
+        - ✅ Respectez **toujours** les stop loss
+        - ✅ Ne risquez que **1-2% du capital par trade**
+        - ✅ Max **3 positions simultanées**
+        - ✅ **Pas de positions overnight** (le système ferme automatiquement)
+        """)
     
     def _render_monthly_signals(self):
         """Render monthly signals tab - THE CORE FEATURE"""

@@ -50,9 +50,11 @@ logs/*.log
 
 # macOS
 .DS_Store
+**/.DS_Store
 
 # Windows
 Thumbs.db
+desktop.ini
 
 # Jupyter
 .ipynb_checkpoints/
