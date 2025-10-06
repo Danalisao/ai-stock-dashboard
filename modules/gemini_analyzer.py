@@ -48,7 +48,7 @@ class GeminiAnalyzer:
     def analyze_trending_stock(self, news_articles: List[Dict[str, Any]], 
                                watchlist: List[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Analyze news articles to discover the stock most likely to EXPLODE
+        Analyze news articles to discover MULTIPLE trading opportunities
         Uses AI to identify breakout opportunities across the entire market
         
         Args:
@@ -56,7 +56,7 @@ class GeminiAnalyzer:
             watchlist: Optional list to restrict analysis (None = discover any stock)
             
         Returns:
-            Dictionary with explosive opportunity stock info and AI analysis
+            Dictionary with top opportunities sorted by risk level (low to high)
         """
         if not self.enabled:
             self.logger.warning("Gemini not enabled - using fallback analysis")
@@ -69,42 +69,49 @@ class GeminiAnalyzer:
             # Create advanced prompt for opportunity discovery
             watchlist_constraint = f"\n\nOPTIONAL FILTER: Prioritize these stocks if relevant: {', '.join(watchlist)}" if watchlist else "\n\nANALYZE ALL STOCKS - No restrictions."
             
-            prompt = f"""You are a professional stock market analyst. Analyze the following financial news and identify the ONE stock with the HIGHEST EXPLOSIVE POTENTIAL in the next 7-30 days.
+            prompt = f"""You are a professional stock market analyst. Analyze the following financial news and identify the TOP 3-5 stocks with TRADING OPPORTUNITIES in the next 7-30 days.
 
 NEWS ARTICLES FROM MULTIPLE SOURCES:
 {news_text}
 {watchlist_constraint}
 
-CRITERIA FOR EXPLOSIVE POTENTIAL:
+CRITERIA FOR TRADING OPPORTUNITIES:
 1. ⚡ **Catalysts**: Earnings beats, FDA approvals, product launches, M&A, partnerships
 2. 📈 **Momentum**: Multiple positive articles, analyst upgrades, price action
 3. 💰 **Market Impact**: Significant revenue/growth announcements
 4. 🔥 **Sentiment Surge**: Bullish tone, excitement, breakthrough news
 5. 🎯 **Timing**: Recent/imminent events (not old news)
 
-IDENTIFY the stock ticker symbol (e.g., AAPL, TSLA, NVDA) that has:
-- The STRONGEST catalyst(s) for explosive growth
-- The MOST BULLISH sentiment shift
-- The HIGHEST probability of significant price movement
+IDENTIFY 3-5 stock ticker symbols with trading potential, sorted from LOWEST to HIGHEST risk:
+- LOW RISK: Established companies, strong fundamentals, clear catalysts
+- MEDIUM RISK: Growth stocks with good momentum, moderate volatility
+- HIGH RISK: High volatility stocks, speculative plays, but strong catalysts
 
 Respond ONLY in JSON format:
 {{
-    "trending_stock": "TICKER_SYMBOL",
-    "confidence": 0-100,
-    "reasoning": "Concise explanation (2-3 sentences) of WHY this will explode",
-    "sentiment": "bullish/neutral/bearish",
-    "key_topics": ["catalyst1", "catalyst2", "catalyst3"],
-    "news_count": number_of_relevant_articles,
-    "explosion_catalysts": ["specific event 1", "specific event 2"],
-    "timeframe": "7-30 days estimate",
-    "risk_level": "low/medium/high"
+    "opportunities": [
+        {{
+            "ticker": "TICKER_SYMBOL",
+            "confidence": 0-100,
+            "reasoning": "Concise explanation (2-3 sentences) of WHY this is a good trade",
+            "sentiment": "bullish/neutral/bearish",
+            "key_topics": ["catalyst1", "catalyst2"],
+            "news_count": number_of_relevant_articles,
+            "explosion_catalysts": ["specific event 1", "specific event 2"],
+            "timeframe": "7-30 days estimate",
+            "risk_level": "low/medium/high"
+        }}
+    ],
+    "total_analyzed": number_of_articles,
+    "market_overview": "Brief market context (1 sentence)"
 }}
 
 IMPORTANT: 
-- Focus on ACTIONABLE explosive opportunities, not general trending
-- Identify the ticker symbol even if not explicitly mentioned (use company name)
-- Prioritize stocks with MULTIPLE positive catalysts
-- Be specific about what will drive the explosion
+- Return 3-5 opportunities SORTED from LOWEST to HIGHEST risk
+- Focus on ACTIONABLE trading opportunities with clear entry points
+- Include diverse risk levels (at least 1 low risk, 1-2 medium, 1-2 high)
+- Be specific about catalysts and timing
+- Identify ticker even if not explicitly mentioned (use company name)
 
 Return ONLY valid JSON, no markdown or extra text."""
 
@@ -129,12 +136,24 @@ Return ONLY valid JSON, no markdown or extra text."""
             result['articles_analyzed'] = len(news_articles)
             
             # Ensure required fields
-            if not result.get('trending_stock'):
-                self.logger.warning("Gemini did not identify a stock - using fallback")
-                return self._fallback_analysis(news_articles, watchlist or [])
+            opportunities = result.get('opportunities', [])
+            if not opportunities:
+                self.logger.warning("Gemini did not identify opportunities - using fallback")
+                fallback = self._fallback_analysis(news_articles, watchlist or [])
+                # Convert fallback to new format
+                return {
+                    'opportunities': [fallback],
+                    'total_analyzed': len(news_articles),
+                    'market_overview': 'Limited market analysis available',
+                    'source': 'fallback',
+                    'timestamp': datetime.now().isoformat()
+                }
             
-            self.logger.info(f"🚀 Gemini identified EXPLOSIVE opportunity: {result.get('trending_stock')} "
-                           f"(confidence: {result.get('confidence')}%) - {result.get('reasoning', '')[:50]}...")
+            # Log opportunities found
+            self.logger.info(f"🚀 Gemini identified {len(opportunities)} trading opportunities:")
+            for i, opp in enumerate(opportunities, 1):
+                self.logger.info(f"  {i}. {opp.get('ticker')} (Risk: {opp.get('risk_level')}, "
+                               f"Confidence: {opp.get('confidence')}%) - {opp.get('reasoning', '')[:40]}...")
             
             return result
             
@@ -182,12 +201,15 @@ Return ONLY valid JSON, no markdown or extra text."""
         # Find most mentioned
         if not mentions or max(mentions.values()) == 0:
             return {
-                'trending_stock': watchlist[0] if watchlist else 'AAPL',
+                'ticker': watchlist[0] if watchlist else 'AAPL',
                 'confidence': 0,
                 'reasoning': 'No specific stock trending in news. Showing default.',
                 'sentiment': 'neutral',
                 'key_topics': [],
                 'news_count': 0,
+                'explosion_catalysts': [],
+                'timeframe': '7-30 days',
+                'risk_level': 'medium',
                 'source': 'fallback',
                 'timestamp': datetime.now().isoformat()
             }
@@ -196,12 +218,15 @@ Return ONLY valid JSON, no markdown or extra text."""
         news_count = mentions[trending_stock]
         
         return {
-            'trending_stock': trending_stock,
+            'ticker': trending_stock,
             'confidence': min(news_count * 10, 100),  # Simple confidence score
             'reasoning': f"Most frequently mentioned in recent news ({news_count} mentions).",
             'sentiment': 'neutral',
             'key_topics': ['news', 'mentions'],
             'news_count': news_count,
+            'explosion_catalysts': ['Multiple mentions'],
+            'timeframe': '7-30 days',
+            'risk_level': 'medium',
             'source': 'fallback',
             'timestamp': datetime.now().isoformat(),
             'articles_analyzed': len(news_articles)

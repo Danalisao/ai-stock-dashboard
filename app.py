@@ -160,12 +160,12 @@ class TradingDashboard:
         rsi = 100 - (100 / (1 + rs))
         return rsi.iloc[-1] if not rsi.empty else 50.0
     def _render_trending_stock_banner(self):
-        """Render AI-powered explosive opportunity banner at the top"""
+        """Render AI-powered trading opportunities at the top"""
         # Use session state to cache the analysis (refresh every hour)
-        if 'trending_stock_data' not in st.session_state or \
-           (datetime.now() - st.session_state.get('trending_stock_timestamp', datetime.min)).seconds > 3600:
+        if 'trading_opportunities' not in st.session_state or \
+           (datetime.now() - st.session_state.get('opportunities_timestamp', datetime.min)).seconds > 3600:
             
-            with st.spinner("🚀 AI scanning entire market for explosive opportunities..."):
+            with st.spinner("🚀 AI scanning entire market for trading opportunities..."):
                 # Fetch GENERAL market news (not limited to watchlist)
                 all_news = self.news_aggregator.fetch_market_news(max_articles=100)
                 
@@ -178,170 +178,197 @@ class TradingDashboard:
                 # Optional: Get watchlist for prioritization (not restriction)
                 watchlist = self._get_default_watchlist()
                 
-                # Analyze with Gemini to discover explosive opportunities
-                trending_data = self.gemini_analyzer.analyze_trending_stock(
+                # Analyze with Gemini to discover multiple opportunities
+                analysis_result = self.gemini_analyzer.analyze_trending_stock(
                     all_news, 
                     watchlist=watchlist if watchlist else None
                 )
                 
-                if trending_data:
-                    st.session_state.trending_stock_data = trending_data
-                    st.session_state.trending_stock_timestamp = datetime.now()
+                if analysis_result:
+                    opportunities = analysis_result.get('opportunities', [])
                     
-                    # ⚠️ LATE ENTRY RISK CHECK
-                    symbol = trending_data.get('trending_stock')
-                    try:
-                        # Fetch price data for risk analysis
-                        import yfinance as yf
-                        ticker = get_robust_ticker(symbol)
-                        hist = ticker.history(period="3mo")
-                        
-                        if not hist.empty:
-                            current_price = hist['Close'].iloc[-1]
-                            price_data = {
-                                'current_price': float(current_price),
-                                'change_1d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-2] - 1) * 100) if len(hist) > 1 else 0,
-                                'change_5d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-6] - 1) * 100) if len(hist) > 5 else 0,
-                                'change_20d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-21] - 1) * 100) if len(hist) > 20 else 0,
-                                'rsi': float(self._calculate_rsi(hist['Close'])),
-                                'distance_from_ma20': float((current_price / hist['Close'].rolling(20).mean().iloc[-1] - 1) * 100) if len(hist) > 20 else 0,
-                                'distance_from_ma50': float((current_price / hist['Close'].rolling(50).mean().iloc[-1] - 1) * 100) if len(hist) > 50 else 0,
-                                'volume_ratio': float(hist['Volume'].iloc[-1] / hist['Volume'].rolling(20).mean().iloc[-1]) if len(hist) > 20 else 1,
-                                'distance_from_52w_high': float((current_price / hist['Close'].max() - 1) * 100)
-                            }
-                            
-                            # Get late entry risk assessment
-                            late_entry_risk = self.gemini_analyzer.detect_late_entry_risk(
-                                symbol, price_data, all_news[:30]
-                            )
-                            st.session_state.late_entry_risk = late_entry_risk
-                            
-                            self.logger.info(f"⚠️ Late entry risk for {symbol}: {late_entry_risk.get('late_entry_risk')}")
-                    except Exception as e:
-                        self.logger.warning(f"Could not assess late entry risk: {e}")
-                        st.session_state.late_entry_risk = None
+                    # If no opportunities list, handle old format
+                    if not opportunities and 'trending_stock' in analysis_result:
+                        # Legacy format - convert to new format
+                        opportunities = [{
+                            'ticker': analysis_result.get('trending_stock'),
+                            'confidence': analysis_result.get('confidence', 0),
+                            'reasoning': analysis_result.get('reasoning', ''),
+                            'sentiment': analysis_result.get('sentiment', 'neutral'),
+                            'key_topics': analysis_result.get('key_topics', []),
+                            'news_count': analysis_result.get('news_count', 0),
+                            'explosion_catalysts': analysis_result.get('explosion_catalysts', []),
+                            'timeframe': analysis_result.get('timeframe', '7-30 days'),
+                            'risk_level': analysis_result.get('risk_level', 'medium')
+                        }]
                     
-                    self.logger.info(f"✅ AI identified: {symbol}")
+                    # ⚠️ LATE ENTRY RISK CHECK for each opportunity
+                    for opp in opportunities:
+                        symbol = opp.get('ticker')
+                        try:
+                            ticker = get_robust_ticker(symbol)
+                            hist = ticker.history(period="3mo")
+                            
+                            if not hist.empty:
+                                current_price = hist['Close'].iloc[-1]
+                                price_data = {
+                                    'current_price': float(current_price),
+                                    'change_1d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-2] - 1) * 100) if len(hist) > 1 else 0,
+                                    'change_5d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-6] - 1) * 100) if len(hist) > 5 else 0,
+                                    'change_20d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-21] - 1) * 100) if len(hist) > 20 else 0,
+                                    'rsi': float(self._calculate_rsi(hist['Close'])),
+                                    'distance_from_ma20': float((current_price / hist['Close'].rolling(20).mean().iloc[-1] - 1) * 100) if len(hist) > 20 else 0,
+                                    'distance_from_ma50': float((current_price / hist['Close'].rolling(50).mean().iloc[-1] - 1) * 100) if len(hist) > 50 else 0,
+                                    'volume_ratio': float(hist['Volume'].iloc[-1] / hist['Volume'].rolling(20).mean().iloc[-1]) if len(hist) > 20 else 1,
+                                    'distance_from_52w_high': float((current_price / hist['Close'].max() - 1) * 100)
+                                }
+                                
+                                # Get late entry risk assessment
+                                late_entry_risk = self.gemini_analyzer.detect_late_entry_risk(
+                                    symbol, price_data, all_news[:30]
+                                )
+                                opp['late_entry_risk'] = late_entry_risk
+                                
+                                self.logger.info(f"⚠️ Late entry risk for {symbol}: {late_entry_risk.get('late_entry_risk')}")
+                        except Exception as e:
+                            self.logger.warning(f"Could not assess late entry risk for {symbol}: {e}")
+                            opp['late_entry_risk'] = None
+                    
+                    st.session_state.trading_opportunities = opportunities
+                    st.session_state.market_overview = analysis_result.get('market_overview', '')
+                    st.session_state.opportunities_timestamp = datetime.now()
+                    
+                    self.logger.info(f"✅ AI identified {len(opportunities)} trading opportunities")
         
-        # Display explosive opportunity banner
-        if 'trending_stock_data' in st.session_state:
-            data = st.session_state.trending_stock_data
-            symbol = data.get('trending_stock', 'N/A')
-            confidence = data.get('confidence', 0)
-            reasoning = data.get('reasoning', '')
-            sentiment = data.get('sentiment', 'neutral')
-            news_count = data.get('news_count', 0)
-            catalysts = data.get('explosion_catalysts', data.get('key_topics', []))
-            timeframe = data.get('timeframe', '7-30 days')
-            risk_level = data.get('risk_level', 'medium')
+        # Display trading opportunities
+        if 'trading_opportunities' in st.session_state and st.session_state.trading_opportunities:
+            opportunities = st.session_state.trading_opportunities
+            market_overview = st.session_state.get('market_overview', '')
             
-            # Color based on confidence and sentiment
-            if confidence >= 75 and sentiment == 'bullish':
-                bg_color = "rgba(0, 255, 136, 0.15)"
-                border_color = "#00ff88"
-                emoji = "💎"
-                label = "HIGH EXPLOSIVE POTENTIAL"
-            elif confidence >= 60:
-                bg_color = "rgba(255, 200, 0, 0.15)"
-                border_color = "#ffc800"
-                emoji = "🚀"
-                label = "STRONG OPPORTUNITY"
-            else:
-                bg_color = "rgba(100, 150, 255, 0.1)"
-                border_color = "#6496ff"
-                emoji = "📊"
-                label = "POTENTIAL OPPORTUNITY"
+            # Display market overview if available
+            if market_overview:
+                st.info(f"📊 **Market Overview:** {market_overview}")
             
-            # Risk badge color
-            risk_colors = {
-                'low': '#00ff88',
-                'medium': '#ffc800',
-                'high': '#ff6464'
-            }
-            risk_color = risk_colors.get(risk_level, '#6496ff')
-            
-            # Catalysts display
-            catalysts_html = " • ".join(catalysts[:3]) if catalysts else "Multiple factors"
-            
-            # ⚠️ Display late entry risk warning if present
-            late_entry_warning = ""
-            if 'late_entry_risk' in st.session_state and st.session_state.late_entry_risk:
-                late_risk = st.session_state.late_entry_risk
-                risk_level_entry = late_risk.get('late_entry_risk', 'LOW')
+            # Display each opportunity
+            for idx, data in enumerate(opportunities):
+                symbol = data.get('ticker', 'N/A')
+                confidence = data.get('confidence', 0)
+                reasoning = data.get('reasoning', '')
+                sentiment = data.get('sentiment', 'neutral')
+                news_count = data.get('news_count', 0)
+                catalysts = data.get('explosion_catalysts', data.get('key_topics', []))
+                timeframe = data.get('timeframe', '7-30 days')
+                risk_level = data.get('risk_level', 'medium')
                 
-                if risk_level_entry in ['HIGH', 'CRITICAL']:
-                    warning_color = '#ff4444' if risk_level_entry == 'CRITICAL' else '#ff9500'
-                    warning_emoji = '🚨' if risk_level_entry == 'CRITICAL' else '⚠️'
-                    action = late_risk.get('recommended_action', 'WAIT')
-                    risk_score = late_risk.get('risk_score', 0)
-                    reasoning_text = late_risk.get('reasoning', '')
+                # Color based on risk level (sorted low to high)
+                if risk_level == 'low':
+                    bg_color = "rgba(0, 255, 136, 0.15)"
+                    border_color = "#00ff88"
+                    emoji = "💎"
+                    label = "LOW RISK OPPORTUNITY"
+                elif risk_level == 'medium':
+                    bg_color = "rgba(255, 200, 0, 0.15)"
+                    border_color = "#ffc800"
+                    emoji = "🚀"
+                    label = "MEDIUM RISK OPPORTUNITY"
+                else:  # high
+                    bg_color = "rgba(255, 100, 100, 0.15)"
+                    border_color = "#ff6464"
+                    emoji = "⚡"
+                    label = "HIGH RISK OPPORTUNITY"
+                
+                # Risk badge color
+                risk_colors = {
+                    'low': '#00ff88',
+                    'medium': '#ffc800',
+                    'high': '#ff6464'
+                }
+                risk_color = risk_colors.get(risk_level, '#6496ff')
+                
+                # Catalysts display
+                catalysts_html = " • ".join(catalysts[:3]) if catalysts else "Multiple factors"
+                
+                # ⚠️ Display late entry risk warning if present
+                late_entry_warning = ""
+                if data.get('late_entry_risk'):
+                    late_risk = data['late_entry_risk']
+                    risk_level_entry = late_risk.get('late_entry_risk', 'LOW')
                     
-                    # Build risk list HTML separately
-                    risk_items = ''.join([f'<li>{risk}</li>' for risk in late_risk.get('key_risks', [])])
-                    
-                    # Build late entry warning HTML with single quotes to avoid conflicts
-                    late_entry_warning = (
-                        f"<div style='background: rgba(255,68,68,0.15); border: 2px solid {warning_color}; "
-                        f"padding: 1rem; border-radius: 8px; margin: 1rem 0;'>"
-                        f"<strong style='color: {warning_color};'>{warning_emoji} LATE ENTRY RISK: {risk_level_entry}</strong>"
-                        f"<p style='margin: 0.5rem 0; font-size: 0.95rem;'>Risk Score: {risk_score}% | Action: {action}</p>"
-                        f"<p style='margin: 0.5rem 0; font-size: 0.9rem; color: #ccc;'>{reasoning_text}</p>"
-                        f"<details style='margin-top: 0.5rem;'>"
-                        f"<summary style='cursor: pointer; color: {warning_color};'>Key Risks</summary>"
-                        f"<ul style='margin: 0.5rem 0; padding-left: 1.5rem;'>{risk_items}</ul>"
-                        f"</details></div>"
-                    )
-            
-            # Build main card HTML
-            main_html = f"""
-            <div style="background: {bg_color}; border-left: 6px solid {border_color}; padding: 1.5rem; border-radius: 10px; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h2 style="margin:0; color: {border_color};">{emoji} {label}: <strong style="font-size: 1.4em;">{symbol}</strong></h2>
-                    <span style="background: {risk_color}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">
-                        RISK: {risk_level.upper()}
-                    </span>
-                </div>
-                {late_entry_warning}
-                <p style="margin: 0.8rem 0; font-size: 1.1rem; line-height: 1.5; color: #fff;">{reasoning}</p>
-                <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 5px; margin: 0.8rem 0;">
-                    <strong style="color: {border_color};">⚡ Catalysts:</strong> {catalysts_html}
-                </div>
-                <div style="display: flex; gap: 2rem; margin-top: 1rem; font-size: 0.95rem; flex-wrap: wrap;">
-                    <span>🎯 <strong>Confidence:</strong> {confidence}%</span>
-                    <span>📰 <strong>Articles:</strong> {news_count}</span>
-                    <span>💹 <strong>Sentiment:</strong> {sentiment.upper()}</span>
-                    <span>⏱️ <strong>Timeframe:</strong> {timeframe}</span>
-                    <span>🤖 <strong>Source:</strong> {data.get('source', 'AI')}</span>
-                </div>
-            </div>
-            """
-            
-            st.markdown(main_html, unsafe_allow_html=True)
-            
-            # Add quick action buttons
-            col1, col2, col3, col4 = st.columns([1.5, 1.5, 1, 3])
-            with col1:
-                if st.button(f"📊 Deep Analysis {symbol}", key="analyze_trending", use_container_width=True):
-                    # Add to watchlist if not present
-                    if symbol not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(symbol)
-                        self.db.add_to_watchlist(symbol)
-                    st.session_state.selected_symbol = symbol
-                    st.rerun()
-            with col2:
-                if st.button(f"➕ Add {symbol} to Watchlist", key="add_trending", use_container_width=True):
-                    if symbol not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(symbol)
-                        self.db.add_to_watchlist(symbol)
-                        st.success(f"✅ {symbol} added!")
+                    if risk_level_entry in ['HIGH', 'CRITICAL']:
+                        warning_color = '#ff4444' if risk_level_entry == 'CRITICAL' else '#ff9500'
+                        warning_emoji = '🚨' if risk_level_entry == 'CRITICAL' else '⚠️'
+                        action = late_risk.get('recommended_action', 'WAIT')
+                        risk_score = late_risk.get('risk_score', 0)
+                        reasoning_text = late_risk.get('reasoning', '')
+                        
+                        # Build risk list HTML separately
+                        risk_items = ''.join([f'<li>{risk}</li>' for risk in late_risk.get('key_risks', [])])
+                        
+                        # Build late entry warning HTML with single quotes to avoid conflicts
+                        late_entry_warning = (
+                            f"<div style='background: rgba(255,68,68,0.15); border: 2px solid {warning_color}; "
+                            f"padding: 1rem; border-radius: 8px; margin: 1rem 0;'>"
+                            f"<strong style='color: {warning_color};'>{warning_emoji} LATE ENTRY RISK: {risk_level_entry}</strong>"
+                            f"<p style='margin: 0.5rem 0; font-size: 0.95rem;'>Risk Score: {risk_score}% | Action: {action}</p>"
+                            f"<p style='margin: 0.5rem 0; font-size: 0.9rem; color: #ccc;'>{reasoning_text}</p>"
+                            f"<details style='margin-top: 0.5rem;'>"
+                            f"<summary style='cursor: pointer; color: {warning_color};'>Key Risks</summary>"
+                            f"<ul style='margin: 0.5rem 0; padding-left: 1.5rem;'>{risk_items}</ul>"
+                            f"</details></div>"
+                        )
+                
+                # Build main card HTML - separate header and content to avoid escaping issues
+                header_html = f"""<div style="background: {bg_color}; border-left: 6px solid {border_color}; padding: 1.5rem; border-radius: 10px; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h2 style="margin:0; color: {border_color};">#{idx+1} {emoji} {label}: <strong style="font-size: 1.4em;">{symbol}</strong></h2>
+                        <span style="background: {risk_color}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">
+                            RISK: {risk_level.upper()}
+                        </span>
+                    </div>"""
+                
+                content_html = f"""<p style="margin: 0.8rem 0; font-size: 1.1rem; line-height: 1.5; color: #fff;">{reasoning}</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 5px; margin: 0.8rem 0;">
+                        <strong style="color: {border_color};">⚡ Catalysts:</strong> {catalysts_html}
+                    </div>
+                    <div style="display: flex; gap: 2rem; margin-top: 1rem; font-size: 0.95rem; flex-wrap: wrap;">
+                        <span>🎯 <strong>Confidence:</strong> {confidence}%</span>
+                        <span>📰 <strong>Articles:</strong> {news_count}</span>
+                        <span>💹 <strong>Sentiment:</strong> {sentiment.upper()}</span>
+                        <span>⏱️ <strong>Timeframe:</strong> {timeframe}</span>
+                        <span>🤖 <strong>Source:</strong> {data.get('source', 'AI')}</span>
+                    </div>
+                </div>"""
+                
+                # Combine parts - late_entry_warning is already HTML
+                main_html = header_html + late_entry_warning + content_html
+                
+                st.markdown(main_html, unsafe_allow_html=True)
+                
+                # Add quick action buttons for each opportunity
+                col1, col2, col3, col4 = st.columns([1.5, 1.5, 1, 3])
+                with col1:
+                    if st.button(f"📊 Deep Analysis {symbol}", key=f"analyze_opp_{idx}", use_container_width=True):
+                        # Add to watchlist if not present
+                        if symbol not in st.session_state.watchlist:
+                            st.session_state.watchlist.append(symbol)
+                            self.db.add_to_watchlist(symbol)
+                        st.session_state.selected_symbol = symbol
                         st.rerun()
-                    else:
-                        st.info(f"{symbol} already in watchlist")
-            with col3:
-                if st.button("🔄 Refresh", key="refresh_trending", use_container_width=True):
-                    if 'trending_stock_data' in st.session_state:
-                        del st.session_state.trending_stock_data
-                    st.rerun()
+                with col2:
+                    if st.button(f"➕ Add {symbol}", key=f"add_opp_{idx}", use_container_width=True):
+                        if symbol not in st.session_state.watchlist:
+                            st.session_state.watchlist.append(symbol)
+                            self.db.add_to_watchlist(symbol)
+                            st.success(f"✅ {symbol} added!")
+                            st.rerun()
+                        else:
+                            st.info(f"{symbol} already in watchlist")
+                with col3:
+                    if idx == 0:  # Only show refresh on first opportunity
+                        if st.button("🔄 Refresh", key="refresh_opportunities", use_container_width=True):
+                            if 'trading_opportunities' in st.session_state:
+                                del st.session_state.trading_opportunities
+                            st.rerun()
     
     def run(self):
         """Run the main dashboard application"""
