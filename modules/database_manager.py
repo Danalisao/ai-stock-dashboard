@@ -607,6 +607,37 @@ class DatabaseManager:
             self.logger.error(f"Error retrieving alerts: {e}")
             return []
     
+    def get_recent_alerts(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get recent alerts (most recent first)
+        
+        Args:
+            limit: Maximum number of alerts to return
+            
+        Returns:
+            List of alert dictionaries with 'timestamp' field (renamed from 'created_at')
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, symbol, alert_type, priority, message, value, 
+                       created_at as timestamp, sent_channels, acknowledged, acknowledged_at
+                FROM alerts 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ''', (limit,))
+            
+            rows = cursor.fetchall()
+            self._close_connection(conn)
+            
+            return [dict(row) for row in rows]
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving recent alerts: {e}")
+            return []
+    
     # ==================== Watchlist ====================
     
     def add_to_watchlist(self, symbol: str, company_name: Optional[str] = None,

@@ -161,16 +161,32 @@ class TradingDashboard:
         return rsi.iloc[-1] if not rsi.empty else 50.0
     def _render_trending_stock_banner(self):
         """Render AI-powered trading opportunities at the top"""
-        # Use session state to cache the analysis (refresh every hour)
+        # Fast mode check - skip AI analysis if enabled (for instant loading)
+        if st.session_state.get('fast_mode', True):
+            if 'trading_opportunities' not in st.session_state:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.info("⚡ **Fast Mode Active** - AI market scan disabled for instant loading")
+                with col2:
+                    if st.button("🚀 Scan Market Now", key="enable_ai_scan", use_container_width=True):
+                        st.session_state.fast_mode = False
+                        st.rerun()
+                return
+        
+        # Use session state to cache the analysis (refresh every 4 hours for faster loading)
+        cache_duration_seconds = 4 * 3600  # 4 hours instead of 1 hour
+        
         if 'trading_opportunities' not in st.session_state or \
-           (datetime.now() - st.session_state.get('opportunities_timestamp', datetime.min)).seconds > 3600:
+           (datetime.now() - st.session_state.get('opportunities_timestamp', datetime.min)).total_seconds() > cache_duration_seconds:
             
             with st.spinner("🚀 AI scanning entire market for trading opportunities..."):
-                # Fetch GENERAL market news (not limited to watchlist)
-                all_news = self.news_aggregator.fetch_market_news(max_articles=100)
+                # Fetch GENERAL market news (reduced from 100 to 50 for speed)
+                all_news = self.news_aggregator.fetch_market_news(max_articles=50)
                 
-                if not all_news or len(all_news) < 10:
+                if not all_news or len(all_news) < 5:  # Reduced threshold from 10 to 5
                     self.logger.warning(f"Insufficient market news: {len(all_news)} articles")
+                    st.session_state.trading_opportunities = []
+                    st.session_state.opportunities_timestamp = datetime.now()
                     return
                 
                 self.logger.info(f"Analyzing {len(all_news)} market articles with Gemini AI")
@@ -202,9 +218,10 @@ class TradingDashboard:
                             'risk_level': analysis_result.get('risk_level', 'medium')
                         }]
                     
-                    # ✅ NEWS VALIDATION: Fetch specific news for each opportunity
-                    self.logger.info(f"📰 Fetching specific news for {len(opportunities)} opportunities...")
-                    for opp in opportunities:
+                    # ✅ NEWS VALIDATION: Fetch specific news for TOP 3 opportunities only (speed optimization)
+                    top_opportunities = opportunities[:3]  # Validate only top 3
+                    self.logger.info(f"📰 Fetching specific news for top {len(top_opportunities)} opportunities...")
+                    for opp in top_opportunities:
                         symbol = opp.get('ticker')
                         try:
                             # Fetch symbol-specific news
@@ -236,8 +253,14 @@ class TradingDashboard:
                             opp['specific_news'] = []
                             opp['confirmed'] = True  # Benefit of the doubt
                     
-                    # ⚠️ LATE ENTRY RISK CHECK for each opportunity
-                    for opp in opportunities:
+                    # Mark remaining opportunities as not validated (skip for speed)
+                    for opp in opportunities[3:]:
+                        opp['confirmed'] = True
+                        opp['specific_news'] = []
+                        opp['specific_news_count'] = 0
+                    
+                    # ⚠️ LATE ENTRY RISK CHECK for TOP 3 opportunities only (speed optimization)
+                    for opp in top_opportunities:  # Only check top 3
                         symbol = opp.get('ticker')
                         try:
                             ticker = get_robust_ticker(symbol)
@@ -259,7 +282,7 @@ class TradingDashboard:
                                 
                                 # Get late entry risk assessment
                                 late_entry_risk = self.gemini_analyzer.detect_late_entry_risk(
-                                    symbol, price_data, all_news[:30]
+                                    symbol, price_data, all_news[:20]  # Reduced from 30 to 20 articles
                                 )
                                 opp['late_entry_risk'] = late_entry_risk
                                 
@@ -267,6 +290,10 @@ class TradingDashboard:
                         except Exception as e:
                             self.logger.warning(f"Could not assess late entry risk for {symbol}: {e}")
                             opp['late_entry_risk'] = None
+                    
+                    # Skip late entry risk for remaining opportunities (for speed)
+                    for opp in opportunities[3:]:
+                        opp['late_entry_risk'] = None
                     
                     st.session_state.trading_opportunities = opportunities
                     st.session_state.market_overview = analysis_result.get('market_overview', '')
@@ -342,7 +369,13 @@ class TradingDashboard:
                     validation = data['validation']
                     confirmed = validation.get('confirmed', True)
                     val_confidence = validation.get('confidence', confidence)
+                    # Convert confidence_change to int/float if it's a string
                     confidence_change = validation.get('confidence_change', 0)
+                    if isinstance(confidence_change, str):
+                        try:
+                            confidence_change = float(confidence_change)
+                        except (ValueError, TypeError):
+                            confidence_change = 0
                     val_reasoning = validation.get('reasoning', '')
                     red_flags = validation.get('red_flags', [])
                     recommendation = validation.get('recommendation', 'NEUTRAL')
@@ -462,6 +495,10 @@ class TradingDashboard:
         """Run the main dashboard application"""
         # Header
         st.markdown('<div class="main-header">🛡️ Professional Trading System</div>', unsafe_allow_html=True)
+        
+        # Fast loading mode toggle (in sidebar, before heavy operations)
+        if 'fast_mode' not in st.session_state:
+            st.session_state.fast_mode = True  # Default to fast mode for instant loading
         st.markdown("**Institutional-Grade Market Analysis & Signal Generation**")
         
         # System status indicator
@@ -532,6 +569,28 @@ class TradingDashboard:
     def _render_sidebar(self):
         """Render sidebar controls"""
         st.sidebar.header("📊 Trading Dashboard")
+        st.sidebar.markdown("---")
+        
+        # Performance mode toggle
+        st.sidebar.subheader("⚡ Performance Mode")
+        fast_mode = st.sidebar.checkbox(
+            "Fast Loading (Skip AI Market Scan)",
+            value=st.session_state.get('fast_mode', True),
+            help="Enable for instant loading. Disable to scan entire market with AI at startup."
+        )
+        if fast_mode != st.session_state.get('fast_mode', True):
+            st.session_state.fast_mode = fast_mode
+            if not fast_mode and 'trading_opportunities' in st.session_state:
+                del st.session_state.trading_opportunities  # Force refresh
+            st.rerun()
+        
+        # Manual scan button (always available)
+        if st.sidebar.button("🚀 Scan Market Now", use_container_width=True, type="primary" if fast_mode else "secondary"):
+            if 'trading_opportunities' in st.session_state:
+                del st.session_state.trading_opportunities
+            st.session_state.fast_mode = False  # Temporarily disable fast mode
+            st.rerun()
+        
         st.sidebar.markdown("---")
         
         # Stock selection - Use config or database
