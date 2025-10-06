@@ -539,6 +539,93 @@ class AlertManager:
             value=article_count
         )
     
+    def alert_premarket_announcement(self, announcement: Dict[str, Any]) -> bool:
+        """
+        Alert for pre-market announcements (earnings, FDA, M&A, etc.)
+        
+        Args:
+            announcement: Announcement data with symbol, catalysts, priority
+            
+        Returns:
+            True if alert sent successfully
+        """
+        symbol = announcement.get('symbol', 'UNKNOWN')
+        title = announcement.get('title', '')
+        catalysts = announcement.get('catalysts', [])
+        priority = announcement.get('priority', 'MEDIUM')
+        source = announcement.get('source', '')
+        url = announcement.get('url', '')
+        
+        # Format catalysts
+        catalyst_str = ', '.join(catalysts[:3]) if catalysts else 'Unknown'
+        
+        # Emoji based on priority
+        if priority == 'CRITICAL':
+            emoji = "🚨"
+        elif priority == 'HIGH':
+            emoji = "⚡"
+        else:
+            emoji = "📢"
+        
+        message = f"""
+{emoji} PRE-MARKET ANNOUNCEMENT {emoji}
+
+📊 Symbol: {symbol}
+🎯 Priority: {priority}
+⚡ Catalysts: {catalyst_str}
+
+📰 Headline:
+{title}
+
+🔗 Source: {source}
+"""
+        
+        # Send through appropriate channels
+        try:
+            success = False
+            
+            # Always try Telegram first for pre-market alerts (traders check phone in morning)
+            if self.channels.get('telegram', False) and self.telegram_bot:
+                telegram_msg = f"""
+{emoji} <b>PRE-MARKET ALERT</b> {emoji}
+
+📊 <b>{symbol}</b> | {priority}
+⚡ {catalyst_str}
+
+📰 {title}
+
+🔗 <a href="{url}">{source}</a>
+"""
+                if self._send_telegram(telegram_msg):
+                    self.logger.info(f"✅ Pre-market Telegram alert sent for {symbol}")
+                    success = True
+            
+            # Email for HIGH and CRITICAL
+            if priority in ['HIGH', 'CRITICAL'] and self.channels.get('email', False):
+                if self._send_email('PREMARKET', symbol, message, priority):
+                    self.logger.info(f"✅ Pre-market email alert sent for {symbol}")
+                    success = True
+            
+            # Desktop notification for CRITICAL only (to not spam)
+            if priority == 'CRITICAL' and self.channels.get('desktop', True):
+                desktop_msg = f"{catalyst_str}\n{title[:100]}..."
+                if self._send_desktop_notification(
+                    f"🚨 PRE-MARKET: {symbol}",
+                    desktop_msg,
+                    priority
+                ):
+                    success = True
+            
+            # Audio for CRITICAL
+            if priority == 'CRITICAL' and self.channels.get('audio', False):
+                self._play_alert_sound(priority)
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error sending pre-market alert: {e}")
+            return False
+    
     def test_alerts(self) -> Dict[str, bool]:
         """Test all alert channels"""
         results = {}

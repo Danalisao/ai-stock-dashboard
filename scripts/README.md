@@ -36,7 +36,50 @@ crontab -e
 
 ---
 
-### 2. **realtime_monitor.py** - Live Market Monitoring
+### 2. **premarket_monitor.py** - 🌅 Pre-Market Announcements
+Monitors pre-market catalysts before market open (4:00 AM - 9:30 AM ET).
+
+**What it does:**
+- Scans for earnings, FDA approvals, M&A, guidance
+- Extracts symbols from news articles
+- Prioritizes announcements (CRITICAL > HIGH > MEDIUM)
+- Sends alerts via Telegram/Email/Desktop
+- Runs continuously or single scan
+
+**Run single scan (all market):**
+```bash
+python scripts/premarket_monitor.py
+```
+
+**Run with watchlist:**
+```bash
+python scripts/premarket_monitor.py --watchlist AAPL TSLA MSFT
+```
+
+**Run continuous (scan every 30 minutes):**
+```bash
+python scripts/premarket_monitor.py --continuous --interval 30
+```
+
+**Schedule with cron (4:00 AM - 9:30 AM ET, every 30 min):**
+```bash
+crontab -e
+# Add this line:
+*/30 4-9 * * 1-5 cd /path/to/ai-stock-dashboard && source venv/bin/activate && python scripts/premarket_monitor.py >> logs/premarket.log 2>&1
+```
+
+**Features:**
+- 🌅 Pre-market hours detection (4:00-9:30 AM ET)
+- 🎯 Smart catalyst detection (earnings, FDA, M&A, etc.)
+- 🚨 Priority-based alerts (CRITICAL, HIGH, MEDIUM)
+- 💬 Telegram-first (best for morning alerts)
+- 📧 Email backup for HIGH/CRITICAL
+- 🔄 Continuous or single-scan mode
+- 📋 Watchlist filtering support
+
+---
+
+### 3. **realtime_monitor.py** - Live Market Monitoring
 Continuous monitoring during market hours (9:30 AM - 4:00 PM EST).
 
 **What it does:**

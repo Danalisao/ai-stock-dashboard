@@ -61,9 +61,10 @@ class SocialAggregator:
             List of mention dictionaries
         """
         if not self.reddit:
-            self.logger.warning("Reddit API not initialized")
+            self.logger.warning("Reddit API not initialized - skipping social data")
             return []
         
+        self.logger.info(f"🔍 Searching Reddit for {symbol} mentions...")
         mentions = []
         subreddits = self.config.get('reddit_subs', ['stocks', 'investing', 'wallstreetbets'])
         
@@ -75,8 +76,10 @@ class SocialAggregator:
                     
                     # Search for symbol mentions
                     query = f"${symbol} OR {symbol}"
+                    self.logger.debug(f"Searching r/{sub_name} for: {query}")
                     
                     # Search recent posts
+                    found_count = 0
                     for submission in subreddit.search(query, time_filter='week', limit=50):
                         # Check if recent enough
                         post_date = datetime.fromtimestamp(submission.created_utc)
@@ -96,14 +99,15 @@ class SocialAggregator:
                             'posted_date': post_date.isoformat(),
                             'fetched_at': datetime.now().isoformat()
                         })
+                        found_count += 1
                     
-                    self.logger.info(f"Fetched mentions from r/{sub_name}")
+                    self.logger.info(f"  💬 r/{sub_name}: {found_count} mentions")
                     
                 except Exception as e:
-                    self.logger.error(f"Error fetching from r/{sub_name}: {e}")
+                    self.logger.error(f"  ❌ Error fetching from r/{sub_name}: {e}")
                     continue
             
-            self.logger.info(f"Total Reddit mentions for {symbol}: {len(mentions)}")
+            self.logger.info(f"✅ Total Reddit mentions for {symbol}: {len(mentions)}")
             
         except Exception as e:
             self.logger.error(f"Error fetching Reddit mentions: {e}")

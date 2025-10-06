@@ -46,6 +46,7 @@ Dashboard professionnel de trading qui scanne automatiquement **120+ actions** e
 
 - **Multi-canaux**: Desktop, Email, Telegram, Audio
 - **9 types d'alertes**: RSI, volume, sentiment, breakouts, etc.
+- **🌅 Alertes Pré-Marchés**: Earnings, FDA, M&A, guidance (4:00-9:30 AM ET)
 - **Priorités automatiques**: CRITICAL → LOW
 
 ## 🚀 Démarrage Rapide (2 minutes)
@@ -176,12 +177,16 @@ securities regulations in your jurisdiction. Professional risk management protoc
 
 ## 📚 Documentation
 
-- **QUICKSTART.md** - Guide de démarrage rapide (5 minutes)
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - Guide de démarrage rapide (5 minutes)
+- **[GEMINI_SETUP.md](docs/GEMINI_SETUP.md)** - Configuration AI Gemini (détection opportunités explosives)
+- **[REDDIT_SETUP.md](docs/REDDIT_SETUP.md)** - Configuration Reddit API (sentiment social)
+- **[ALERT_SETUP_GUIDE.md](docs/ALERT_SETUP_GUIDE.md)** - Configuration système d'alertes
+- **[PREMARKET_ALERTS_GUIDE.md](docs/PREMARKET_ALERTS_GUIDE.md)** - 🌅 Alertes pré-marchés (earnings, FDA, M&A)
 - **config.yaml** - Configuration système
 - **.env.example** - Template pour API keys
-- **docs/** - Documentation archivée (historique du projet)
+- **docs/** - Documentation complète (guides et historique)
 
-Pour plus d'informations sur les anciennes versions, voir le dossier `docs/`.
+Pour plus d'informations, voir le dossier `docs/`.
 
 ## 📝 License
 

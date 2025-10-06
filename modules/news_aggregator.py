@@ -487,6 +487,163 @@ class NewsAggregator:
         
         return symbols
     
+    def fetch_premarket_announcements(self, symbols: List[str] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch pre-market announcements (earnings, FDA, M&A, etc.)
+        Should be run before market open (4:00 AM - 9:30 AM ET)
+        
+        Args:
+            symbols: Optional list of symbols to monitor (None = all market)
+            
+        Returns:
+            List of pre-market announcements with priority
+        """
+        announcements = []
+        
+        # Keywords that indicate pre-market catalysts
+        catalyst_keywords = [
+            'earnings', 'quarterly results', 'earnings report', 'Q1', 'Q2', 'Q3', 'Q4',
+            'FDA approval', 'FDA decision', 'FDA clearance', 
+            'merger', 'acquisition', 'acquires', 'to acquire',
+            'buyout', 'takeover', 'deal',
+            'bankruptcy', 'chapter 11',
+            'guidance', 'upgrades', 'downgrades',
+            'pre-market', 'premarket', 'before market',
+            'announces', 'announced', 'releases',
+            'clinical trial', 'phase 2', 'phase 3',
+            'SEC filing', '8-K', '10-Q', '10-K',
+            'dividend', 'special dividend',
+            'buyback', 'share repurchase',
+            'CEO', 'resignation', 'appointed'
+        ]
+        
+        try:
+            # Fetch latest market news
+            market_news = self.fetch_market_news(max_articles=100)
+            
+            # Analyze each article for pre-market catalysts
+            for article in market_news:
+                title = article.get('title', '').lower()
+                description = article.get('description', '').lower()
+                full_text = f"{title} {description}"
+                
+                # Check for catalyst keywords
+                matched_catalysts = []
+                for keyword in catalyst_keywords:
+                    if keyword in full_text:
+                        matched_catalysts.append(keyword)
+                
+                # If catalysts found, analyze priority
+                if matched_catalysts:
+                    # Try to extract symbol from title/description
+                    symbol = self._extract_symbol_from_text(article.get('title', ''))
+                    
+                    # Skip if symbols list provided and this symbol not in it
+                    if symbols and symbol and symbol not in symbols:
+                        continue
+                    
+                    # Determine priority based on catalyst type
+                    priority = self._calculate_announcement_priority(matched_catalysts, full_text)
+                    
+                    # Check if time is recent (within last 12 hours)
+                    published_date = article.get('published_date', '') or article.get('published', '')
+                    is_recent = self._is_recent_news(published_date, hours=12)
+                    
+                    if is_recent:
+                        announcements.append({
+                            'symbol': symbol or 'UNKNOWN',
+                            'title': article.get('title', ''),
+                            'description': article.get('description', ''),
+                            'url': article.get('url', ''),
+                            'source': article.get('source', ''),
+                            'published_date': published_date,
+                            'catalysts': matched_catalysts,
+                            'priority': priority,
+                            'type': 'premarket_announcement',
+                            'fetched_at': datetime.now().isoformat()
+                        })
+            
+            # Sort by priority (CRITICAL > HIGH > MEDIUM)
+            priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+            announcements.sort(key=lambda x: priority_order.get(x['priority'], 4))
+            
+            self.logger.info(f"Found {len(announcements)} pre-market announcements")
+            return announcements
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching pre-market announcements: {e}")
+            return []
+    
+    def _extract_symbol_from_text(self, text: str) -> Optional[str]:
+        """Extract stock symbol from text (e.g., 'AAPL', '$TSLA', 'NASDAQ:MSFT')"""
+        import re
+        
+        # Pattern for stock symbols
+        patterns = [
+            r'\$([A-Z]{1,5})\b',  # $AAPL
+            r'\b([A-Z]{1,5})\s+(?:stock|shares|equity)',  # AAPL stock
+            r'(?:NYSE|NASDAQ|AMEX):([A-Z]{1,5})',  # NYSE:AAPL
+            r'\(([A-Z]{1,5})\)',  # Apple (AAPL)
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text.upper())
+            if match:
+                symbol = match.group(1)
+                # Filter out common words
+                common_words = {'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN'}
+                if symbol not in common_words:
+                    return symbol
+        
+        return None
+    
+    def _calculate_announcement_priority(self, catalysts: List[str], text: str) -> str:
+        """Calculate priority based on catalyst type"""
+        text_lower = text.lower()
+        
+        # CRITICAL: Major catalysts that move markets
+        critical_keywords = ['bankruptcy', 'chapter 11', 'merger', 'acquisition', 'buyout', 
+                           'takeover', 'fda approval']
+        if any(kw in catalysts for kw in critical_keywords):
+            return 'CRITICAL'
+        
+        # HIGH: Important but not market-moving
+        high_keywords = ['earnings', 'quarterly', 'Q1', 'Q2', 'Q3', 'Q4', 'guidance', 
+                        'upgrades', 'downgrades', 'clinical trial']
+        if any(kw in text_lower for kw in high_keywords):
+            return 'HIGH'
+        
+        # MEDIUM: Notable announcements
+        medium_keywords = ['dividend', 'buyback', 'ceo', 'sec filing']
+        if any(kw in text_lower for kw in medium_keywords):
+            return 'MEDIUM'
+        
+        return 'LOW'
+    
+    def _is_recent_news(self, published_date: str, hours: int = 24) -> bool:
+        """Check if news is recent"""
+        try:
+            if not published_date:
+                return True  # Assume recent if no date
+            
+            # Try to parse ISO format
+            try:
+                pub_dt = datetime.fromisoformat(published_date.replace('Z', '+00:00'))
+            except:
+                # Try other common formats
+                from dateutil import parser
+                pub_dt = parser.parse(published_date)
+            
+            # Check if within specified hours
+            now = datetime.now(pub_dt.tzinfo) if pub_dt.tzinfo else datetime.now()
+            time_diff = now - pub_dt
+            
+            return time_diff.total_seconds() / 3600 <= hours
+            
+        except Exception as e:
+            self.logger.debug(f"Error parsing date {published_date}: {e}")
+            return True  # Assume recent on error
+    
     def validate_article(self, article: Dict[str, Any]) -> bool:
         """
         Validate article data quality
