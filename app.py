@@ -14,6 +14,10 @@ from datetime import datetime, timedelta
 import logging
 import os
 
+# Load environment variables FIRST (before any module that needs API keys)
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file with API keys
+
 # Import our custom modules
 from modules.utils import (
     load_config, setup_logging, is_market_open, 
