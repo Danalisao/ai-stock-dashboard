@@ -42,18 +42,19 @@ class AlertManager:
             self._init_audio()
     
     def _init_telegram(self):
-        """Initialize Telegram bot"""
+        """Initialize Telegram (pure synchronous, no async)"""
         try:
-            from telegram import Bot
-            
             bot_token = os.getenv('TELEGRAM_BOT_TOKEN') or self.telegram_config.get('bot_token')
+            self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID') or self.telegram_config.get('chat_id')
             
-            if bot_token:
-                self.telegram_bot = Bot(token=bot_token)
-                self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID') or self.telegram_config.get('chat_id')
+            if bot_token and self.telegram_chat_id:
+                # Store token for direct API calls (no async library)
+                self.telegram_bot_token = bot_token
+                self.telegram_bot = True  # Flag to indicate Telegram is configured
                 self.logger.info("Telegram bot initialized")
             else:
-                self.logger.warning("Telegram bot token not found")
+                self.logger.warning("Telegram bot token or chat ID not found")
+                self.telegram_bot = None
                 
         except Exception as e:
             self.logger.error(f"Error initializing Telegram: {e}")
@@ -123,6 +124,81 @@ class AlertManager:
             self.logger.error(f"Error sending alert: {e}")
         
         return success
+    
+    def send_opportunity_alert(self, opportunity: Dict[str, Any]) -> bool:
+        """
+        Send trading opportunity alert with smart channel fallback
+        Priority: Telegram > Email > Desktop/Audio
+        
+        Args:
+            opportunity: Opportunity data from Gemini AI
+            
+        Returns:
+            True if alert sent successfully through any channel
+        """
+        try:
+            symbol = opportunity.get('ticker', 'N/A')
+            risk_level = opportunity.get('risk_level', 'medium')
+            confidence = opportunity.get('confidence', 0)
+            reasoning = opportunity.get('reasoning', '')
+            catalysts = opportunity.get('explosion_catalysts', [])
+            
+            # Format opportunity message
+            catalysts_str = '\n  • '.join(catalysts[:3]) if catalysts else 'Multiple factors'
+            
+            message = f"""
+💎 TRADING OPPORTUNITY DETECTED 💎
+
+📊 Symbol: {symbol}
+🎯 Risk Level: {risk_level.upper()}
+📈 Confidence: {confidence}%
+
+💡 Reasoning:
+{reasoning}
+
+⚡ Catalysts:
+  • {catalysts_str}
+
+🚀 Source: Gemini AI Discovery
+"""
+            
+            # Try Telegram first (HIGH priority)
+            if self.channels.get('telegram', False) and self.telegram_bot:
+                if self._send_telegram(message):
+                    self.logger.info(f"✅ Telegram alert sent for {symbol} ({risk_level} risk)")
+                    return True
+                else:
+                    self.logger.warning(f"⚠️ Telegram failed for {symbol}, trying email...")
+            
+            # Fallback to Email (MEDIUM priority)
+            if self.channels.get('email', False):
+                if self._send_email('OPPORTUNITY', symbol, message, 'HIGH'):
+                    self.logger.info(f"✅ Email alert sent for {symbol} ({risk_level} risk)")
+                    return True
+                else:
+                    self.logger.warning(f"⚠️ Email failed for {symbol}, trying desktop...")
+            
+            # Fallback to Desktop + Audio (LOW priority)
+            success = False
+            if self.channels.get('desktop', True):
+                if self._send_desktop_notification(
+                    f"Trading Opportunity: {symbol}",
+                    f"{risk_level.upper()} risk • {confidence}% confidence\n{reasoning[:100]}...",
+                    'HIGH'
+                ):
+                    success = True
+                    self.logger.info(f"✅ Desktop alert sent for {symbol}")
+            
+            if self.channels.get('audio', False):
+                if self._play_alert_sound('HIGH'):
+                    success = True
+                    self.logger.info(f"✅ Audio alert played for {symbol}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error sending opportunity alert: {e}")
+            return False
     
     def _get_channels_for_priority(self, priority: str) -> List[str]:
         """Determine which channels to use based on priority"""
@@ -254,17 +330,26 @@ class AlertManager:
             return False
     
     def _send_telegram(self, message: str) -> bool:
-        """Send Telegram message"""
+        """Send Telegram message (pure synchronous, no async warnings)"""
         try:
             if not self.telegram_bot or not self.telegram_chat_id:
                 return False
             
-            # Send message
-            self.telegram_bot.send_message(
-                chat_id=self.telegram_chat_id,
-                text=message,
-                parse_mode='Markdown'
-            )
+            # Use Telegram HTTP API directly with requests (100% synchronous)
+            import requests
+            
+            url = f"https://api.telegram.org/bot{self.telegram_bot_token}/sendMessage"
+            
+            # Escape Markdown special characters for safety
+            # Or use HTML parse_mode which is more forgiving
+            payload = {
+                'chat_id': self.telegram_chat_id,
+                'text': message,
+                'parse_mode': 'HTML'  # More forgiving than Markdown
+            }
+            
+            response = requests.post(url, json=payload, timeout=10)
+            response.raise_for_status()
             
             self.logger.info("Telegram alert sent")
             return True

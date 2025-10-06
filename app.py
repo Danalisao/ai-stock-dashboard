@@ -239,6 +239,20 @@ class TradingDashboard:
                     st.session_state.opportunities_timestamp = datetime.now()
                     
                     self.logger.info(f"✅ AI identified {len(opportunities)} trading opportunities")
+                    
+                    # 🚨 Send alerts for LOW RISK opportunities (prioritize them)
+                    low_risk_opportunities = [opp for opp in opportunities if opp.get('risk_level') == 'low']
+                    if low_risk_opportunities:
+                        self.logger.info(f"🚨 Sending alerts for {len(low_risk_opportunities)} LOW RISK opportunities...")
+                        for opp in low_risk_opportunities:
+                            symbol = opp.get('ticker', 'N/A')
+                            try:
+                                if self.alert_manager.send_opportunity_alert(opp):
+                                    self.logger.info(f"✅ Alert sent successfully for {symbol}")
+                                else:
+                                    self.logger.warning(f"⚠️ Failed to send alert for {symbol}")
+                            except Exception as e:
+                                self.logger.error(f"❌ Error sending alert for {symbol}: {e}")
         
         # Display trading opportunities
         if 'trading_opportunities' in st.session_state and st.session_state.trading_opportunities:
@@ -347,7 +361,7 @@ class TradingDashboard:
                 # Add quick action buttons for each opportunity
                 col1, col2, col3, col4 = st.columns([1.5, 1.5, 1, 3])
                 with col1:
-                    if st.button(f"📊 Deep Analysis {symbol}", key=f"analyze_opp_{idx}", use_container_width=True):
+                    if st.button(f"📊 Deep Analysis {symbol}", key=f"analyze_opp_{idx}", width='stretch'):
                         # Add to watchlist if not present
                         if symbol not in st.session_state.watchlist:
                             st.session_state.watchlist.append(symbol)
@@ -355,7 +369,7 @@ class TradingDashboard:
                         st.session_state.selected_symbol = symbol
                         st.rerun()
                 with col2:
-                    if st.button(f"➕ Add {symbol}", key=f"add_opp_{idx}", use_container_width=True):
+                    if st.button(f"➕ Add {symbol}", key=f"add_opp_{idx}", width='stretch'):
                         if symbol not in st.session_state.watchlist:
                             st.session_state.watchlist.append(symbol)
                             self.db.add_to_watchlist(symbol)
@@ -365,7 +379,7 @@ class TradingDashboard:
                             st.info(f"{symbol} already in watchlist")
                 with col3:
                     if idx == 0:  # Only show refresh on first opportunity
-                        if st.button("🔄 Refresh", key="refresh_opportunities", use_container_width=True):
+                        if st.button("🔄 Refresh", key="refresh_opportunities", width='stretch'):
                             if 'trading_opportunities' in st.session_state:
                                 del st.session_state.trading_opportunities
                             st.rerun()
@@ -484,12 +498,12 @@ class TradingDashboard:
         
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            if st.button("🔄 Refresh", use_container_width=True):
+            if st.button("🔄 Refresh", width='stretch'):
                 st.cache_data.clear()
                 st.rerun()
         
         with col2:
-            if st.button("🔔 Alerts", use_container_width=True):
+            if st.button("🔔 Alerts", width='stretch'):
                 st.session_state.show_alerts = True
         
         # Display recent alerts
@@ -668,7 +682,7 @@ class TradingDashboard:
                 showlegend=False
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         with col3:
             # Trade parameters
@@ -814,7 +828,7 @@ class TradingDashboard:
             height=400
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     def _render_news_sentiment(self):
         """Render news and sentiment analysis tab"""
@@ -826,7 +840,7 @@ class TradingDashboard:
         
         with col1:
             days_back = st.slider("Days of news:", 1, 30, 7)
-            refresh_news = st.button("🔄 Refresh News", use_container_width=True)
+            refresh_news = st.button("🔄 Refresh News", width='stretch')
         
         # Fetch news
         with st.spinner(f"📡 Fetching news for {symbol}..."):
@@ -891,7 +905,7 @@ class TradingDashboard:
             height=300
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Display articles
         st.subheader("📋 Recent News Articles")
@@ -938,7 +952,7 @@ class TradingDashboard:
             with col2:
                 sim_shares = st.number_input("Shares:", min_value=1, value=10)
             with col3:
-                if st.button("📈 Open Position", use_container_width=True):
+                if st.button("📈 Open Position", width='stretch'):
                     # Fetch current price
                     stock_data = self._fetch_stock_data(sim_symbol, '1d')
                     if stock_data is not None:
@@ -1001,7 +1015,7 @@ class TradingDashboard:
         col1, col2, col3 = st.columns([2, 1, 1])
         
         with col2:
-            if st.button("🗑️ Delete All Positions", type="secondary", use_container_width=True):
+            if st.button("🗑️ Delete All Positions", type="secondary", width='stretch'):
                 if st.session_state.get('confirm_delete_all', False):
                     # Actually delete all positions
                     if self.db.delete_all_positions():
@@ -1017,7 +1031,7 @@ class TradingDashboard:
         
         with col3:
             if st.session_state.get('confirm_delete_all', False):
-                if st.button("❌ Cancel", use_container_width=True):
+                if st.button("❌ Cancel", width='stretch'):
                     st.session_state['confirm_delete_all'] = False
                     st.rerun()
         
@@ -1131,7 +1145,7 @@ class TradingDashboard:
         with st.expander("📜 Trade History"):
             trade_history = self.portfolio_tracker.get_trade_history_dataframe()
             if not trade_history.empty:
-                st.dataframe(trade_history, use_container_width=True)
+                st.dataframe(trade_history, width='stretch')
             else:
                 st.info("No closed trades yet")
     
@@ -1155,7 +1169,7 @@ class TradingDashboard:
         
         # Create advanced chart
         chart = self._create_technical_chart(stock_data, symbol)
-        st.plotly_chart(chart, use_container_width=True)
+        st.plotly_chart(chart, width='stretch')
         
         # Current indicator values
         st.subheader("📊 Current Indicator Values")
@@ -1229,13 +1243,13 @@ class TradingDashboard:
         # Action buttons
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            train_button = st.button("🎯 Train Models", use_container_width=True)
+            train_button = st.button("🎯 Train Models", width='stretch')
         with col2:
-            predict_button = st.button("🔮 Generate Prediction", use_container_width=True)
+            predict_button = st.button("🔮 Generate Prediction", width='stretch')
         with col3:
-            backtest_button = st.button("📊 Backtest Accuracy", use_container_width=True)
+            backtest_button = st.button("📊 Backtest Accuracy", width='stretch')
         with col4:
-            if st.button("💾 Save Models", use_container_width=True):
+            if st.button("💾 Save Models", width='stretch'):
                 try:
                     self.ml_predictor._save_models(selected_symbol)
                     st.success(f"✅ Models saved for {selected_symbol}")
@@ -1296,7 +1310,7 @@ class TradingDashboard:
                 display_metrics = metrics_df[['r2', 'rmse', 'mae', 'cv_mean', 'cv_std']].copy()
                 display_metrics.columns = ['R² Score', 'RMSE', 'MAE', 'CV Mean', 'CV Std']
                 
-                st.dataframe(display_metrics, use_container_width=True)
+                st.dataframe(display_metrics, width='stretch')
                 
                 # Interpretation
                 st.info("""
@@ -1493,7 +1507,7 @@ class TradingDashboard:
                     })
                 
                 models_df = pd.DataFrame(models_data)
-                st.dataframe(models_df, use_container_width=True, hide_index=True)
+                st.dataframe(models_df, width='stretch', hide_index=True)
                 
                 # Highlight Gemini contribution if present
                 if 'gemini_ai' in prediction['individual_predictions']:
@@ -1546,13 +1560,13 @@ class TradingDashboard:
                     height=500
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Model performance metrics (if available)
                 if self.ml_predictor.model_metrics:
                     with st.expander("📊 Model Training Metrics"):
                         metrics_df = pd.DataFrame(self.ml_predictor.model_metrics).T
-                        st.dataframe(metrics_df.round(4), use_container_width=True)
+                        st.dataframe(metrics_df.round(4), width='stretch')
             
             else:
                 st.error(f"❌ Prediction failed: {prediction.get('error', 'Unknown error')}")
@@ -1627,7 +1641,7 @@ class TradingDashboard:
                         })
                     
                     pred_df = pd.DataFrame(pred_data)
-                    st.dataframe(pred_df, use_container_width=True, hide_index=True)
+                    st.dataframe(pred_df, width='stretch', hide_index=True)
             
             else:
                 st.error(f"❌ Backtest failed: {backtest_results.get('error', 'Unknown error')}")
@@ -1735,7 +1749,7 @@ class TradingDashboard:
                 )
         
         # Run backtest button
-        if st.button("� Run Backtest", type="primary", use_container_width=True):
+        if st.button("� Run Backtest", type="primary", width='stretch'):
             if not selected_symbols:
                 st.error("⚠️ Please select at least one stock to backtest!")
                 return
@@ -1863,7 +1877,7 @@ class TradingDashboard:
                         height=400
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             
             with tab2:
                 st.subheader("Risk Metrics")
@@ -1921,7 +1935,7 @@ class TradingDashboard:
                         
                         st.dataframe(
                             df_trades,
-                            use_container_width=True,
+                            width='stretch',
                             hide_index=True,
                             height=400
                         )

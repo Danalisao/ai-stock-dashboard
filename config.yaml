@@ -252,8 +252,8 @@ alerts:
   enabled: true
   channels:
     desktop: true  # Alertes desktop activées
-    email: false  # Configure SMTP pour activer
-    telegram: false  # Configure bot token pour activer
+    email: true  # ✅ Email alerts (Gmail) - Configure in .env
+    telegram: true  # ✅ Telegram alerts (RECOMMENDED) - Configure in .env
     audio: true  # Sons d'alerte activés
   
   # Alert conditions

@@ -388,9 +388,16 @@ class MLPredictor:
             # Save models
             self._save_models(symbol)
             
-            # Ensemble metrics
+            # Ensemble metrics (only for trained models, excluding Gemini AI)
+            trained_model_names = list(metrics.keys())
+            trained_model_weights = [self.model_weights[name] for name in trained_model_names]
+            
+            # Normalize weights to sum to 1.0
+            weight_sum = sum(trained_model_weights)
+            normalized_weights = [w / weight_sum for w in trained_model_weights]
+            
             ensemble_r2 = np.average([m['r2'] for m in metrics.values()], 
-                                     weights=list(self.model_weights.values()))
+                                     weights=normalized_weights)
             
             return {
                 'symbol': symbol,
