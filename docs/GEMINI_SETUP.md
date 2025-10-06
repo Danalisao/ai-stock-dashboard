@@ -25,7 +25,7 @@ Un banner premium en haut de l'application affiche :
 - 💹 **Sentiment** : Bullish/Neutral/Bearish
 - ⏱️ **Timeframe** : Estimation 7-30 jours
 - 🎯 **Risk Level** : Niveau de risque évalué par AI
-- 🤖 **Source** : gemini-2.0-flash-exp
+- 🤖 **Source** : gemini-2.5-flash
 
 ### 3. Actions Rapides
 - **📊 Deep Analysis** - Analyse complète immédiate de l'action
@@ -123,7 +123,7 @@ major cloud providers signal significant revenue expansion incoming.
 📰 Articles: 34
 💹 Sentiment: BULLISH
 ⏱️ Timeframe: 7-14 days
-🤖 Source: gemini-2.0-flash-exp
+🤖 Source: gemini-2.5-flash
 
 [📊 Deep Analysis NVDA] [➕ Add NVDA to Watchlist] [🔄 Refresh]
 ```
@@ -141,7 +141,7 @@ approval anticipated within 30 days. High volatility expected.
 📰 Articles: 18
 💹 Sentiment: BULLISH
 ⏱️ Timeframe: 14-30 days
-🤖 Source: gemini-2.0-flash-exp
+🤖 Source: gemini-2.5-flash
 ```
 
 ---
@@ -245,7 +245,7 @@ Si votre clé est compromise :
     └────┬────┘
          │
     ┌────▼──────────┐
-    │ Google Gemini │  ← gemini-2.0-flash-exp
+    │ Google Gemini │  ← gemini-2.5-flash
     │  Flash 2.5    │
     └────┬──────────┘
          │

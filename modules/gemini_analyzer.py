@@ -5,8 +5,16 @@ Analyzes market news and trends using Google Gemini Flash 2.5
 
 import logging
 import os
+import time
+import json
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
+
+# Suppress gRPC warnings when not running on GCP
+os.environ.setdefault('GRPC_PYTHON_LOG_LEVEL', 'ERROR')
+os.environ.setdefault('GRPC_VERBOSITY', 'ERROR')
+
 import google.generativeai as genai
 
 
@@ -23,6 +31,19 @@ class GeminiAnalyzer:
         self.logger = logging.getLogger(__name__)
         self.config = config or {}
         
+        # Rate limiting and quota management
+        self.request_count = 0
+        self.daily_limit = 50  # Free tier limit
+        self.last_request_time = 0
+        self.min_request_interval = 1.2  # Seconds between requests
+        self.quota_exceeded = False
+        self.quota_reset_time = None
+        
+        # Cache system
+        self.cache_dir = Path('./data/gemini_cache')
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_ttl = 3600  # 1 hour cache
+        
         # Get API key from environment
         self.api_key = os.getenv('GEMINI_API_KEY')
         
@@ -36,14 +57,165 @@ class GeminiAnalyzer:
             genai.configure(api_key=self.api_key)
             
             # Use Gemini Flash 2.5 (fast and cost-effective)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
             
             self.enabled = True
-            self.logger.info("✅ Google Gemini AI analyzer initialized")
+            self._load_request_counter()
+            self.logger.info(f"✅ Google Gemini AI analyzer initialized (Requests today: {self.request_count}/{self.daily_limit})")
             
         except Exception as e:
             self.logger.error(f"Failed to initialize Gemini: {e}")
             self.enabled = False
+    
+    def _load_request_counter(self):
+        """Load daily request counter from cache"""
+        counter_file = self.cache_dir / 'request_counter.json'
+        try:
+            if counter_file.exists():
+                data = json.loads(counter_file.read_text())
+                today = datetime.now().date().isoformat()
+                if data.get('date') == today:
+                    self.request_count = data.get('count', 0)
+                else:
+                    # New day, reset counter
+                    self.request_count = 0
+                    self._save_request_counter()
+        except Exception as e:
+            self.logger.warning(f"Could not load request counter: {e}")
+    
+    def _save_request_counter(self):
+        """Save daily request counter to cache"""
+        counter_file = self.cache_dir / 'request_counter.json'
+        try:
+            data = {
+                'date': datetime.now().date().isoformat(),
+                'count': self.request_count
+            }
+            counter_file.write_text(json.dumps(data))
+        except Exception as e:
+            self.logger.warning(f"Could not save request counter: {e}")
+    
+    def _get_cache_key(self, operation: str, data: Any) -> str:
+        """Generate cache key from operation and data"""
+        import hashlib
+        data_str = json.dumps(data, sort_keys=True, default=str)
+        hash_obj = hashlib.md5(f"{operation}:{data_str}".encode())
+        return hash_obj.hexdigest()
+    
+    def _get_cached_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """Get cached result if available and not expired"""
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        try:
+            if cache_file.exists():
+                data = json.loads(cache_file.read_text())
+                cached_time = datetime.fromisoformat(data.get('timestamp', ''))
+                if datetime.now() - cached_time < timedelta(seconds=self.cache_ttl):
+                    self.logger.info(f"📦 Using cached result (age: {(datetime.now() - cached_time).seconds}s)")
+                    return data.get('result')
+        except Exception as e:
+            self.logger.debug(f"Cache read error: {e}")
+        return None
+    
+    def _save_to_cache(self, cache_key: str, result: Dict[str, Any]):
+        """Save result to cache"""
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        try:
+            data = {
+                'timestamp': datetime.now().isoformat(),
+                'result': result
+            }
+            cache_file.write_text(json.dumps(data, default=str))
+        except Exception as e:
+            self.logger.warning(f"Cache write error: {e}")
+    
+    def _check_quota_and_wait(self) -> bool:
+        """Check quota and apply rate limiting"""
+        # Check if quota was exceeded
+        if self.quota_exceeded:
+            if self.quota_reset_time and datetime.now() < self.quota_reset_time:
+                remaining = (self.quota_reset_time - datetime.now()).seconds
+                self.logger.warning(f"⏳ Quota exceeded. Reset in {remaining}s. Returning cached/fallback data.")
+                return False
+            else:
+                # Reset quota flag
+                self.quota_exceeded = False
+                self.quota_reset_time = None
+        
+        # Check daily limit
+        if self.request_count >= self.daily_limit:
+            self.logger.warning(f"⚠️ Daily limit reached ({self.request_count}/{self.daily_limit}). Using fallback mode.")
+            return False
+        
+        # Rate limiting - wait between requests
+        elapsed = time.time() - self.last_request_time
+        if elapsed < self.min_request_interval:
+            wait_time = self.min_request_interval - elapsed
+            self.logger.debug(f"⏱️ Rate limiting: waiting {wait_time:.1f}s")
+            time.sleep(wait_time)
+        
+        return True
+    
+    def _execute_gemini_request(self, prompt: str, cache_key: str = None) -> Optional[str]:
+        """Execute Gemini request with quota management and retry logic"""
+        # Check cache first
+        if cache_key:
+            cached = self._get_cached_result(cache_key)
+            if cached:
+                return json.dumps(cached) if isinstance(cached, dict) else cached
+        
+        # Check quota
+        if not self._check_quota_and_wait():
+            return None
+        
+        # Execute request with retry logic
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                self.last_request_time = time.time()
+                response = self.model.generate_content(prompt)
+                
+                # Success - increment counter
+                self.request_count += 1
+                self._save_request_counter()
+                self.logger.debug(f"✅ Gemini request successful ({self.request_count}/{self.daily_limit})")
+                
+                return response.text.strip()
+                
+            except Exception as e:
+                error_str = str(e)
+                
+                # Handle quota exceeded (429)
+                if '429' in error_str or 'quota' in error_str.lower():
+                    self.quota_exceeded = True
+                    
+                    # Extract retry delay if available
+                    if 'retry in' in error_str.lower():
+                        try:
+                            import re
+                            match = re.search(r'retry in (\d+\.?\d*)s', error_str)
+                            if match:
+                                retry_seconds = float(match.group(1))
+                                self.quota_reset_time = datetime.now() + timedelta(seconds=retry_seconds)
+                                self.logger.error(f"🚫 Quota exceeded. Reset in {retry_seconds}s")
+                        except:
+                            pass
+                    
+                    self.logger.error(f"🚫 Gemini quota exceeded. Switching to fallback mode.")
+                    return None
+                
+                # Handle rate limiting (503)
+                elif '503' in error_str or 'rate' in error_str.lower():
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2
+                        self.logger.warning(f"⏳ Rate limited. Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                
+                # Other errors
+                self.logger.error(f"❌ Gemini request failed: {e}")
+                return None
+        
+        return None
     
     def analyze_trending_stock(self, news_articles: List[Dict[str, Any]], 
                                watchlist: List[str] = None) -> Optional[Dict[str, Any]]:
@@ -115,12 +287,23 @@ IMPORTANT:
 
 Return ONLY valid JSON, no markdown or extra text."""
 
-            # Get response from Gemini
-            response = self.model.generate_content(prompt)
+            # Generate cache key
+            cache_key = self._get_cache_key('trending_analysis', {
+                'article_count': len(news_articles),
+                'first_title': news_articles[0].get('title', '') if news_articles else '',
+                'watchlist': watchlist
+            })
+            
+            # Get response from Gemini with caching
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                # Quota exceeded or error - use fallback
+                self.logger.warning("Gemini unavailable - using fallback analysis")
+                return self._fallback_analysis(news_articles, watchlist or [])
             
             # Parse response
             import json
-            result_text = response.text.strip()
             
             # Remove markdown code blocks if present
             if result_text.startswith('```'):
@@ -263,8 +446,14 @@ Focus on:
 
 Keep it professional, concise, and actionable. No investment advice disclaimers."""
 
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
+            cache_key = self._get_cache_key('market_insight', {
+                'symbol': stock_data.get('symbol'),
+                'price': stock_data.get('price'),
+                'news_summary': news_summary[:200]
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            return result_text if result_text else None
             
         except Exception as e:
             self.logger.error(f"Failed to generate insight: {e}")
@@ -313,8 +502,17 @@ Consider:
 
 Return ONLY valid JSON."""
 
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            cache_key = self._get_cache_key('sentiment_analysis', {
+                'symbol': symbol,
+                'news_count': len(articles),
+                'first_title': articles[0].get('title', '') if articles else ''
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                self.logger.warning("Gemini unavailable for sentiment analysis")
+                return None
             
             # Clean markdown
             if result_text.startswith('```'):
@@ -391,8 +589,17 @@ Base your prediction on:
 
 Return ONLY valid JSON."""
 
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            cache_key = self._get_cache_key('price_prediction', {
+                'symbol': symbol,
+                'current_price': technical_data.get('current_price'),
+                'rsi': technical_data.get('rsi')
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                self.logger.warning("Gemini unavailable for price prediction")
+                return None
             
             # Clean markdown
             if result_text.startswith('```'):
@@ -479,8 +686,22 @@ Provide analysis in JSON format:
 Be CONSERVATIVE. It's better to miss a move than to buy at the top.
 Return ONLY valid JSON."""
 
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            cache_key = self._get_cache_key('late_entry_risk', {
+                'symbol': symbol,
+                'current_price': price_data.get('current_price'),
+                'rsi': price_data.get('rsi')
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                # Fallback - basic RSI-based assessment
+                rsi = price_data.get('rsi', 50)
+                if rsi > 75:
+                    return {'late_entry_risk': 'CRITICAL', 'risk_score': 90, 'recommended_action': 'AVOID', 'reasoning': 'Extremely overbought (RSI > 75)'}
+                elif rsi > 65:
+                    return {'late_entry_risk': 'HIGH', 'risk_score': 75, 'recommended_action': 'WAIT', 'reasoning': 'Overbought conditions'}
+                return {'late_entry_risk': 'MEDIUM', 'risk_score': 50, 'recommended_action': 'MONITOR', 'reasoning': 'Normal conditions'}
             
             # Clean markdown
             if result_text.startswith('```'):
@@ -628,8 +849,21 @@ Evaluate based on:
 
 Be honest and critical. Return ONLY valid JSON."""
 
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            cache_key = self._get_cache_key('opportunity_score', {
+                'symbol': symbol,
+                'confidence': full_analysis.get('confidence', 0)
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                # Fallback - basic scoring
+                return {
+                    'opportunity_score': 50,
+                    'recommendation': 'HOLD',
+                    'conviction': 'Low',
+                    'ai_recommendation': 'AI analysis unavailable - proceed with caution'
+                }
             
             # Clean markdown
             if result_text.startswith('```'):
@@ -713,8 +947,25 @@ Return ONLY valid JSON:
 
 Be brutally honest. If news contradicts the thesis, say so."""
 
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            cache_key = self._get_cache_key('validate_opportunity', {
+                'symbol': symbol,
+                'initial_confidence': opportunity.get('confidence', 0),
+                'news_count': len(symbol_news)
+            })
+            
+            result_text = self._execute_gemini_request(prompt, cache_key)
+            
+            if not result_text:
+                # Fallback - assume confirmed with lower confidence
+                return {
+                    'confirmed': True,
+                    'confidence': opportunity.get('confidence', 50) - 10,
+                    'confidence_change': -10,
+                    'reasoning': 'AI validation unavailable - using conservative assessment',
+                    'red_flags': [],
+                    'recommendation': 'NEUTRAL',
+                    'news_alignment': 'Unknown'
+                }
             
             # Clean markdown
             if result_text.startswith('```'):
