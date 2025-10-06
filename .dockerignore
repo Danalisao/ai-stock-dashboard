@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Data (exclude from image, will be mounted)
+data/*.db
+data/backups/
+logs/*.log
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/archive/
+screenshots/
+*.md
+!README.md
+!README_PROFESSIONAL.md
+
+# CI/CD
+.github/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

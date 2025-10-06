@@ -14,7 +14,8 @@ from modules.monthly_signals import MonthlySignals
 from modules.database_manager import DatabaseManager
 from modules.utils import (
     calculate_sharpe_ratio, calculate_sortino_ratio, 
-    calculate_max_drawdown, format_currency, format_percentage
+    calculate_max_drawdown, format_currency, format_percentage,
+    get_robust_ticker
 )
 
 
@@ -207,7 +208,7 @@ class Backtester:
                                 end: pd.Timestamp) -> Optional[pd.DataFrame]:
         """Fetch historical stock data"""
         try:
-            ticker = yf.Ticker(symbol)
+            ticker = get_robust_ticker(symbol)
             data = ticker.history(start=start.strftime('%Y-%m-%d'), 
                                  end=end.strftime('%Y-%m-%d'))
             
@@ -223,7 +224,7 @@ class Backtester:
     def _get_price_at_date(self, symbol: str, date: pd.Timestamp) -> Optional[float]:
         """Get stock price at specific date"""
         try:
-            ticker = yf.Ticker(symbol)
+            ticker = get_robust_ticker(symbol)
             data = ticker.history(start=date.strftime('%Y-%m-%d'), 
                                  end=(date + timedelta(days=1)).strftime('%Y-%m-%d'))
             
@@ -451,7 +452,7 @@ class Backtester:
     def _get_benchmark_performance(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """Get benchmark (e.g., SPY) performance for comparison"""
         try:
-            ticker = yf.Ticker(self.benchmark)
+            ticker = get_robust_ticker(self.benchmark)
             data = ticker.history(start=start_date, end=end_date)
             
             if data.empty:

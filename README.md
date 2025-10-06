@@ -156,18 +156,23 @@ ai-stock-dashboard/
 └── config.yaml              # Configuration
 ```
 
-## ⚠️ Avertissements Importants
+## ⚠️ Professional Risk Disclosure
 
-**🚨 CE N'EST PAS UN CONSEIL FINANCIER**
+**🛡️ PROFESSIONAL TRADING SYSTEM**
 
-- ❌ Outil à but **éducatif uniquement**
-- ❌ **Aucune garantie** de profit
-- ❌ Trading = **risque de perte**
-- ✅ Utilisez **TOUJOURS** un stop loss
-- ✅ Ne risquez **jamais plus de 2%** par trade
-- ✅ Consultez un **conseiller financier** avant de trader
+This is a professional-grade trading system designed for experienced traders and institutions.
 
-**Vous êtes seul responsable de vos décisions de trading.**
+**Risk Management Protocols:**
+- ✅ Mandatory 8% stop loss on all positions
+- ✅ Maximum 2% risk per trade (institutional standard)
+- ✅ Real-time portfolio risk monitoring
+- ✅ Professional position sizing algorithms
+- ✅ Minimum 2.5:1 risk/reward ratio
+
+**Legal Notice:**
+Trading involves substantial risk of loss. Past performance does not guarantee future results. 
+All trading decisions remain your sole responsibility. You must comply with all applicable 
+securities regulations in your jurisdiction. Professional risk management protocols are mandatory.
 
 ## 📚 Documentation
 

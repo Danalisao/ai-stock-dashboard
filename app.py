@@ -17,7 +17,8 @@ import os
 # Import our custom modules
 from modules.utils import (
     load_config, setup_logging, is_market_open, 
-    format_currency, format_percentage, get_sentiment_emoji, get_trend_emoji
+    format_currency, format_percentage, get_sentiment_emoji, get_trend_emoji,
+    get_robust_ticker
 )
 from modules.database_manager import DatabaseManager
 from modules.news_aggregator import NewsAggregator
@@ -990,7 +991,7 @@ class TradingDashboard:
             with st.spinner(f"📡 Fetching data for {selected_symbol}..."):
                 # Get historical data (need extra for feature engineering)
                 lookback_days = self.ml_predictor.lookback_days + 100
-                ticker = yf.Ticker(selected_symbol)
+                ticker = get_robust_ticker(selected_symbol)
                 data = ticker.history(period=f"{lookback_days}d")
                 
                 if data.empty:
@@ -1754,7 +1755,7 @@ class TradingDashboard:
     def _fetch_stock_data(self, symbol: str, period: str) -> pd.DataFrame:
         """Fetch stock data from yfinance"""
         try:
-            ticker = yf.Ticker(symbol)
+            ticker = get_robust_ticker(symbol)
             data = ticker.history(period=period)
             
             if data.empty:
@@ -1792,8 +1793,8 @@ class TradingDashboard:
         df['RSI'] = 100 - (100 / (1 + rs))
         
         # Use custom indicators (assign to columns, don't overwrite df)
-        df['ADX'] = self.technical_indicators.calculate_adx(df)
-        df['OBV'] = self.technical_indicators.calculate_obv(df)
+        df['ADX'] = self.technical_indicators.calculate_adx(df, return_series=True)
+        df['OBV'] = self.technical_indicators.calculate_obv(df, return_series=True)
         df['VWAP'] = self.technical_indicators.calculate_vwap(df)
         df['MFI'] = self.technical_indicators.calculate_mfi(df)
         

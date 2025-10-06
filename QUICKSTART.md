@@ -239,12 +239,14 @@ Pour plus d'informations:
 
 ## ⚠️ Rappel Important
 
-**🚨 CE N'EST PAS UN CONSEIL FINANCIER**
+**🛡️ PROFESSIONAL TRADING SYSTEM**
 
-- Outil à but éducatif uniquement
-- Trading = risque de perte
-- Utilisez TOUJOURS un stop loss
-- Ne risquez jamais plus de 2% par trade
+This is a professional-grade institutional trading platform with mandatory risk controls:
+
+- ✅ Real-time risk management with automatic stop losses
+- ✅ Professional position sizing (maximum 2% risk per trade)
+- ✅ Live market data validation and quality controls
+- ⚠️ Trading involves substantial risk - professional protocols mandatory
 - Consultez un conseiller financier
 
 ---

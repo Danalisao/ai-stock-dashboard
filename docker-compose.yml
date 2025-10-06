@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  trading-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-stock-dashboard
+    restart: unless-stopped
+    
+    ports:
+      - "8501:8501"
+    
+    volumes:
+      # Persistent data storage
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./backups:/app/backups
+      
+      # Configuration (read-only)
+      - ./config.yaml:/app/config.yaml:ro
+      - ./.env:/app/.env:ro
+    
+    environment:
+      - PROFESSIONAL_MODE=true
+      - TRADING_MODE=PROFESSIONAL
+      - TZ=UTC
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    networks:
+      - trading-network
+    
+    labels:
+      - "com.trading.platform=professional"
+      - "com.trading.version=2.0"
+      - "com.trading.description=Institutional-grade trading platform"
+
+networks:
+  trading-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  logs:
+    driver: local
+  models:
+    driver: local
+  backups:
+    driver: local

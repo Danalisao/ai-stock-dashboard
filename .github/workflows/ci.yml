@@ -1,0 +1,169 @@
+name: Professional CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test & Quality Checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio flake8 black isort mypy
+    
+    - name: Code formatting check (Black)
+      run: |
+        black --check modules/ tests/ --line-length=120
+    
+    - name: Import sorting check (isort)
+      run: |
+        isort --check-only modules/ tests/ --profile black
+    
+    - name: Linting (Flake8)
+      run: |
+        flake8 modules/ tests/ --max-line-length=120 --exclude=__pycache__,venv
+    
+    - name: Type checking (MyPy)
+      run: |
+        mypy modules/ --ignore-missing-imports --no-strict-optional
+      continue-on-error: true
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ --cov=modules --cov-report=xml --cov-report=term -v
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+      continue-on-error: true
+    
+    - name: Professional mode validation
+      run: |
+        python validate_pro_config.py
+    
+    - name: System integration test
+      run: |
+        python test_system.py
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+    
+    - name: Security vulnerability scan (Safety)
+      run: |
+        pip install -r requirements.txt
+        safety check --json
+      continue-on-error: true
+    
+    - name: Security code scan (Bandit)
+      run: |
+        bandit -r modules/ -f json -o bandit-report.json
+      continue-on-error: true
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+
+  build:
+    name: Build & Validate
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Validate configuration
+      run: |
+        python -c "from modules.utils import load_config; config = load_config(); print('Config loaded successfully')"
+    
+    - name: Check database schema
+      run: |
+        python -c "from modules.database_manager import DatabaseManager; db = DatabaseManager({'path': ':memory:'}); print('Database initialized')"
+    
+    - name: Module import check
+      run: |
+        python -c "from modules.monthly_signals import MonthlySignals; from modules.risk_manager import ProfessionalRiskManager; print('All modules imported successfully')"
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: ai-stock-dashboard:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker image
+      run: |
+        docker build -t ai-stock-dashboard:test .
+        docker run --rm ai-stock-dashboard:test python -c "print('Docker image works')"

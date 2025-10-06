@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
@@ -23,7 +26,7 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
         Dictionary with configuration
     """
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         return config
     except FileNotFoundError:
@@ -31,6 +34,9 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
         return {}
     except yaml.YAMLError as e:
         logging.error(f"Error parsing config file: {e}")
+        return {}
+    except UnicodeDecodeError as e:
+        logging.error(f"Unicode decode error in config file: {e}")
         return {}
 
 
@@ -50,15 +56,22 @@ def setup_logging(config: Dict[str, Any]) -> logging.Logger:
     log_file = log_config.get('log_file', './logs/app.log')
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     
-    # Configure logging
+    # Configure logging with UTF-8 encoding (fixes emoji issues on Windows)
     logging.basicConfig(
         level=getattr(logging, log_config.get('level', 'INFO')),
         format=log_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
         handlers=[
-            logging.FileHandler(log_file),
+            logging.FileHandler(log_file, encoding='utf-8'),
             logging.StreamHandler()
         ]
     )
+    
+    # Fix console handler encoding for Windows
+    import sys
+    if sys.platform == 'win32':
+        for handler in logging.getLogger().handlers:
+            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stderr:
+                handler.stream.reconfigure(encoding='utf-8', errors='replace')
     
     return logging.getLogger(__name__)
 
@@ -460,3 +473,58 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
         return default
     
     return numerator / denominator
+
+
+def create_robust_session(timeout: int = 10, retries: int = 5) -> requests.Session:
+    """
+    Create a robust requests session with retry logic and timeout
+    Fixes yfinance connection issues on Windows
+    
+    Args:
+        timeout: Request timeout in seconds
+        retries: Number of retries
+        
+    Returns:
+        Configured requests session
+    """
+    session = requests.Session()
+    
+    # Configure retry strategy
+    retry_strategy = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    
+    # Mount adapter with retry strategy
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    # Set timeout
+    session.timeout = timeout
+    
+    # Set user agent to avoid blocking
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
+    
+    return session
+
+
+def get_robust_ticker(symbol: str):
+    """
+    Get yfinance Ticker (let yfinance handle its own session with curl_cffi)
+    
+    Args:
+        symbol: Stock ticker symbol
+        
+    Returns:
+        yfinance Ticker object
+    """
+    import yfinance as yf
+    # Don't pass custom session - yfinance uses curl_cffi now
+    return yf.Ticker(symbol)
