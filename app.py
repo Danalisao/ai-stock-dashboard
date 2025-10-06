@@ -202,6 +202,40 @@ class TradingDashboard:
                             'risk_level': analysis_result.get('risk_level', 'medium')
                         }]
                     
+                    # ✅ NEWS VALIDATION: Fetch specific news for each opportunity
+                    self.logger.info(f"📰 Fetching specific news for {len(opportunities)} opportunities...")
+                    for opp in opportunities:
+                        symbol = opp.get('ticker')
+                        try:
+                            # Fetch symbol-specific news
+                            symbol_news = self.news_aggregator.fetch_all_news(symbol)
+                            opp['specific_news'] = symbol_news
+                            opp['specific_news_count'] = len(symbol_news)
+                            
+                            self.logger.info(f"  📰 {symbol}: {len(symbol_news)} specific articles")
+                            
+                            # Validate with Gemini using specific news
+                            if symbol_news and len(symbol_news) >= 3:
+                                validation = self.gemini_analyzer.validate_opportunity(
+                                    symbol, opp, symbol_news
+                                )
+                                if validation:
+                                    opp['validation'] = validation
+                                    opp['confirmed'] = validation.get('confirmed', True)
+                                    opp['validation_confidence'] = validation.get('confidence', opp['confidence'])
+                                    opp['red_flags'] = validation.get('red_flags', [])
+                                    opp['validation_reasoning'] = validation.get('reasoning', '')
+                                    
+                                    self.logger.info(f"  ✅ {symbol}: Validated (Confirmed: {validation.get('confirmed')}, Confidence: {validation.get('confidence')}%)")
+                            else:
+                                opp['confirmed'] = True  # No news to contradict
+                                self.logger.warning(f"  ⚠️ {symbol}: Insufficient news for validation ({len(symbol_news)} articles)")
+                                
+                        except Exception as e:
+                            self.logger.error(f"  ❌ {symbol}: News validation failed - {e}")
+                            opp['specific_news'] = []
+                            opp['confirmed'] = True  # Benefit of the doubt
+                    
                     # ⚠️ LATE ENTRY RISK CHECK for each opportunity
                     for opp in opportunities:
                         symbol = opp.get('ticker')
@@ -302,6 +336,46 @@ class TradingDashboard:
                 # Catalysts display
                 catalysts_html = " • ".join(catalysts[:3]) if catalysts else "Multiple factors"
                 
+                # ✅ Display validation status if present
+                validation_section = ""
+                if data.get('validation'):
+                    validation = data['validation']
+                    confirmed = validation.get('confirmed', True)
+                    val_confidence = validation.get('confidence', confidence)
+                    confidence_change = validation.get('confidence_change', 0)
+                    val_reasoning = validation.get('reasoning', '')
+                    red_flags = validation.get('red_flags', [])
+                    recommendation = validation.get('recommendation', 'NEUTRAL')
+                    news_alignment = validation.get('news_alignment', 'Unknown')
+                    updated_risk = validation.get('updated_risk_level', risk_level)
+                    
+                    if confirmed:
+                        val_color = '#00ff88' if recommendation == 'STRONG_CONFIRM' else '#ffc800'
+                        val_emoji = '✅' if recommendation == 'STRONG_CONFIRM' else '👍'
+                        val_title = 'VALIDATED' if recommendation == 'STRONG_CONFIRM' else 'CONFIRMED'
+                    else:
+                        val_color = '#ff4444'
+                        val_emoji = '❌'
+                        val_title = 'REJECTED'
+                    
+                    # Build red flags list
+                    red_flags_html = ''.join([f'<li style="color: #ff6464;">{flag}</li>' for flag in red_flags]) if red_flags else '<li>None detected</li>'
+                    
+                    validation_section = (
+                        f"<div style='background: rgba(100,150,255,0.15); border: 2px solid {val_color}; "
+                        f"padding: 1rem; border-radius: 8px; margin: 1rem 0;'>"
+                        f"<strong style='color: {val_color};'>{val_emoji} NEWS VALIDATION: {val_title}</strong>"
+                        f"<p style='margin: 0.5rem 0; font-size: 0.95rem;'>"
+                        f"Confidence: {val_confidence}% ({'+' if confidence_change > 0 else ''}{confidence_change}) | "
+                        f"News Alignment: {news_alignment} | "
+                        f"Updated Risk: {updated_risk.upper()}</p>"
+                        f"<p style='margin: 0.5rem 0; font-size: 0.9rem; color: #ddd;'>{val_reasoning}</p>"
+                        f"<details style='margin-top: 0.5rem;'>"
+                        f"<summary style='cursor: pointer; color: {val_color};'>Red Flags ({len(red_flags)})</summary>"
+                        f"<ul style='margin: 0.5rem 0; padding-left: 1.5rem;'>{red_flags_html}</ul>"
+                        f"</details></div>"
+                    )
+                
                 # ⚠️ Display late entry risk warning if present
                 late_entry_warning = ""
                 if data.get('late_entry_risk'):
@@ -353,8 +427,8 @@ class TradingDashboard:
                     </div>
                 </div>"""
                 
-                # Combine parts - late_entry_warning is already HTML
-                main_html = header_html + late_entry_warning + content_html
+                # Combine parts - validation_section and late_entry_warning are already HTML
+                main_html = header_html + validation_section + late_entry_warning + content_html
                 
                 st.markdown(main_html, unsafe_allow_html=True)
                 
@@ -846,6 +920,11 @@ class TradingDashboard:
         with st.spinner(f"📡 Fetching news for {symbol}..."):
             news_articles = self.news_aggregator.fetch_all_news(symbol)
         
+        # Fetch Reddit mentions (in parallel)
+        with st.spinner(f"💬 Fetching social sentiment for {symbol}..."):
+            reddit_mentions = self.social_aggregator.fetch_reddit_mentions(symbol, days=days_back)
+            social_sentiment = self.social_aggregator.calculate_social_sentiment(reddit_mentions) if reddit_mentions else None
+        
         if not news_articles:
             st.warning(f"No news found for {symbol}")
             return
@@ -874,8 +953,48 @@ class TradingDashboard:
         with col4:
             st.metric("Trend", sentiment_data.get('sentiment_trend', 'neutral').title())
         
+        # Reddit Social Sentiment Section
+        if social_sentiment:
+            st.markdown("---")
+            st.subheader("💬 Reddit Social Sentiment")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_mentions = social_sentiment.get('total_mentions', 0)
+                st.metric("Reddit Mentions", f"{total_mentions}")
+            
+            with col2:
+                avg_score = social_sentiment.get('average_score', 0)
+                st.metric("Average Score", f"{avg_score:.1f}")
+            
+            with col3:
+                buzz_level = social_sentiment.get('buzz_level', 'low')
+                buzz_emoji = "🔥" if buzz_level == 'very_high' else "📈" if buzz_level == 'high' else "📊" if buzz_level == 'medium' else "📉"
+                st.metric("Buzz Level", f"{buzz_emoji} {buzz_level.replace('_', ' ').title()}")
+            
+            with col4:
+                sentiment = social_sentiment.get('sentiment', 'neutral')
+                sent_emoji = "🟢" if 'positive' in sentiment else "🔴" if 'negative' in sentiment else "⚪"
+                st.metric("Sentiment", f"{sent_emoji} {sentiment.replace('_', ' ').title()}")
+            
+            # Top Reddit posts
+            if reddit_mentions:
+                top_posts = sorted(reddit_mentions, key=lambda x: x.get('score', 0), reverse=True)[:5]
+                
+                with st.expander(f"🔥 Top {len(top_posts)} Reddit Posts", expanded=False):
+                    for post in top_posts:
+                        st.markdown(f"**r/{post['subreddit']}** • ⬆️ {post['score']} • 💬 {post['num_comments']}")
+                        st.markdown(f"[{post['title']}]({post['url']})")
+                        if post.get('content'):
+                            st.caption(post['content'][:200] + "...")
+                        st.divider()
+        else:
+            st.info("💡 Reddit data not available. Configure Reddit API in `.env` to see social sentiment.")
+        
         # Sentiment over time
-        st.subheader("📈 Sentiment Trend")
+        st.markdown("---")
+        st.subheader("📈 News Sentiment Trend")
         
         df = pd.DataFrame(news_articles)
         df['published_date'] = pd.to_datetime(df['published_date'])

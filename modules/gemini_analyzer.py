@@ -649,3 +649,86 @@ Be honest and critical. Return ONLY valid JSON."""
         except Exception as e:
             self.logger.error(f"Gemini opportunity scoring failed: {e}")
             return None
+    
+    def validate_opportunity(self, symbol: str, opportunity: Dict[str, Any], 
+                           symbol_news: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Validate an identified opportunity with symbol-specific news
+        
+        Args:
+            symbol: Stock ticker
+            opportunity: Initial opportunity data from market scan
+            symbol_news: Symbol-specific news articles
+            
+        Returns:
+            Validation result with confirmed status and updated confidence
+        """
+        if not self.enabled:
+            return None
+        
+        try:
+            # Format news for context
+            news_context = "\n\n".join([
+                f"**{article.get('title', 'N/A')}**\n"
+                f"Source: {article.get('source', 'N/A')}\n"
+                f"Published: {article.get('published_date', 'N/A')}\n"
+                f"Description: {article.get('description', 'N/A')[:300]}"
+                for article in symbol_news[:15]
+            ])
+            
+            initial_reasoning = opportunity.get('reasoning', '')
+            initial_confidence = opportunity.get('confidence', 0)
+            risk_level = opportunity.get('risk_level', 'medium')
+            catalysts = opportunity.get('explosion_catalysts', [])
+            
+            prompt = f"""You are a professional trading analyst. You previously identified {symbol} as a trading opportunity with {initial_confidence}% confidence and {risk_level} risk.
+
+INITIAL ANALYSIS:
+Reasoning: {initial_reasoning}
+Catalysts: {', '.join(catalysts) if catalysts else 'None'}
+
+NOW, validate this opportunity with {len(symbol_news)} symbol-specific news articles:
+
+{news_context}
+
+Critically analyze:
+1. Are the initial catalysts CONFIRMED by specific news?
+2. Any RED FLAGS or contradicting information?
+3. Has the situation improved, worsened, or stayed the same?
+4. Should confidence be adjusted up or down?
+5. Should the opportunity be CONFIRMED or REJECTED?
+
+Return ONLY valid JSON:
+{{
+    "confirmed": true/false,
+    "confidence": 0-100,
+    "confidence_change": -50 to +50,
+    "reasoning": "2-3 sentence validation summary",
+    "red_flags": ["flag1", "flag2"] or [],
+    "supporting_factors": ["factor1", "factor2"],
+    "recommendation": "STRONG_CONFIRM/CONFIRM/NEUTRAL/CAUTION/REJECT",
+    "news_alignment": "Strong/Moderate/Weak/Contradictory",
+    "updated_risk_level": "low/medium/high"
+}}
+
+Be brutally honest. If news contradicts the thesis, say so."""
+
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Clean markdown
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            validation = json.loads(result_text)
+            validation['validated_at'] = datetime.now().isoformat()
+            validation['news_count'] = len(symbol_news)
+            
+            return validation
+            
+        except Exception as e:
+            self.logger.error(f"Gemini validation failed for {symbol}: {e}")
+            return None
