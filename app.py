@@ -85,12 +85,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 class TradingDashboard:
     """Main dashboard application"""
     
     def __init__(self):
-        """Initialize dashboard with all components"""
+        """Initialize dashboard with all components - Gemini-first architecture"""
         # Load configuration
         self.config = load_config()
         
@@ -98,12 +97,24 @@ class TradingDashboard:
         setup_logging(self.config.get('logging', {}))
         self.logger = logging.getLogger(__name__)
         
-        # Initialize components
+        # STEP 1: Initialize Gemini AI as the core intelligence
+        self.gemini_analyzer = GeminiAnalyzer(self.config)
+        if self.gemini_analyzer.enabled:
+            self.logger.info("Gemini AI initialized - Enhanced intelligence mode activated")
+        else:
+            self.logger.warning("Gemini AI not available - Using traditional analysis")
+        
+        # STEP 2: Initialize database and core services
         self.db = DatabaseManager(self.config.get('database', {}))
         self.news_aggregator = NewsAggregator(self.config)
-        self.sentiment_analyzer = SentimentAnalyzer()
         self.social_aggregator = SocialAggregator(self.config)
         self.technical_indicators = TechnicalIndicators()
+        
+        # STEP 3: Initialize analysis modules with Gemini integration
+        self.sentiment_analyzer = SentimentAnalyzer(self.config, self.gemini_analyzer)
+        self.ml_predictor = MLPredictor(self.config, self.gemini_analyzer)
+        
+        # STEP 4: Initialize composite modules
         self.monthly_signals = MonthlySignals(
             self.config,
             self.sentiment_analyzer,
@@ -112,8 +123,6 @@ class TradingDashboard:
         self.alert_manager = AlertManager(self.config)
         self.portfolio_tracker = PortfolioTracker(self.config, self.db)
         self.backtester = Backtester(self.config, self.monthly_signals, self.db)
-        self.ml_predictor = MLPredictor(self.config)
-        self.gemini_analyzer = GeminiAnalyzer(self.config)
         
         # Professional mode enforcement - ALWAYS ACTIVE
         self.pro_guard = ProModeGuard(self.config, self.db)
@@ -121,14 +130,16 @@ class TradingDashboard:
         # MANDATORY professional readiness validation
         try:
             self.pro_guard.ensure_production_ready(enforce=True)
-            self.logger.info("✅ Professional trading system operational")
+            self.logger.info("Professional trading system operational")
         except RuntimeError as e:
-            self.logger.error(f"❌ Professional mode validation failed: {e}")
-            st.error(f"🚫 SYSTEM ERROR: {e}")
-            st.error("� This is a professional trading tool. All safeguards must be operational.")
+            self.logger.error(f"Professional mode validation failed: {e}")
+            st.error(f"SYSTEM ERROR: {e}")
+            st.error("This is a professional trading tool. All safeguards must be operational.")
             st.stop()
         
-        self.logger.info("Dashboard initialized successfully")
+        # Log initialization summary
+        gemini_status = "ENABLED" if self.gemini_analyzer.enabled else "DISABLED"
+        self.logger.info(f"Dashboard initialized successfully - Gemini AI: {gemini_status}")
     
     def _get_default_watchlist(self):
         """Get default watchlist from config"""
@@ -139,6 +150,15 @@ class TradingDashboard:
             return watchlist_config
         return []
     
+    
+    def _calculate_rsi(self, prices, period=14):
+        """Calculate RSI for late entry detection"""
+        delta = prices.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi.iloc[-1] if not rsi.empty else 50.0
     def _render_trending_stock_banner(self):
         """Render AI-powered explosive opportunity banner at the top"""
         # Use session state to cache the analysis (refresh every hour)
@@ -167,7 +187,41 @@ class TradingDashboard:
                 if trending_data:
                     st.session_state.trending_stock_data = trending_data
                     st.session_state.trending_stock_timestamp = datetime.now()
-                    self.logger.info(f"✅ AI identified: {trending_data.get('trending_stock')}")
+                    
+                    # ⚠️ LATE ENTRY RISK CHECK
+                    symbol = trending_data.get('trending_stock')
+                    try:
+                        # Fetch price data for risk analysis
+                        import yfinance as yf
+                        ticker = get_robust_ticker(symbol)
+                        hist = ticker.history(period="3mo")
+                        
+                        if not hist.empty:
+                            current_price = hist['Close'].iloc[-1]
+                            price_data = {
+                                'current_price': float(current_price),
+                                'change_1d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-2] - 1) * 100) if len(hist) > 1 else 0,
+                                'change_5d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-6] - 1) * 100) if len(hist) > 5 else 0,
+                                'change_20d': float((hist['Close'].iloc[-1] / hist['Close'].iloc[-21] - 1) * 100) if len(hist) > 20 else 0,
+                                'rsi': float(self._calculate_rsi(hist['Close'])),
+                                'distance_from_ma20': float((current_price / hist['Close'].rolling(20).mean().iloc[-1] - 1) * 100) if len(hist) > 20 else 0,
+                                'distance_from_ma50': float((current_price / hist['Close'].rolling(50).mean().iloc[-1] - 1) * 100) if len(hist) > 50 else 0,
+                                'volume_ratio': float(hist['Volume'].iloc[-1] / hist['Volume'].rolling(20).mean().iloc[-1]) if len(hist) > 20 else 1,
+                                'distance_from_52w_high': float((current_price / hist['Close'].max() - 1) * 100)
+                            }
+                            
+                            # Get late entry risk assessment
+                            late_entry_risk = self.gemini_analyzer.detect_late_entry_risk(
+                                symbol, price_data, all_news[:30]
+                            )
+                            st.session_state.late_entry_risk = late_entry_risk
+                            
+                            self.logger.info(f"⚠️ Late entry risk for {symbol}: {late_entry_risk.get('late_entry_risk')}")
+                    except Exception as e:
+                        self.logger.warning(f"Could not assess late entry risk: {e}")
+                        st.session_state.late_entry_risk = None
+                    
+                    self.logger.info(f"✅ AI identified: {symbol}")
         
         # Display explosive opportunity banner
         if 'trending_stock_data' in st.session_state:
@@ -209,7 +263,37 @@ class TradingDashboard:
             # Catalysts display
             catalysts_html = " • ".join(catalysts[:3]) if catalysts else "Multiple factors"
             
-            st.markdown(f"""
+            # ⚠️ Display late entry risk warning if present
+            late_entry_warning = ""
+            if 'late_entry_risk' in st.session_state and st.session_state.late_entry_risk:
+                late_risk = st.session_state.late_entry_risk
+                risk_level_entry = late_risk.get('late_entry_risk', 'LOW')
+                
+                if risk_level_entry in ['HIGH', 'CRITICAL']:
+                    warning_color = '#ff4444' if risk_level_entry == 'CRITICAL' else '#ff9500'
+                    warning_emoji = '🚨' if risk_level_entry == 'CRITICAL' else '⚠️'
+                    action = late_risk.get('recommended_action', 'WAIT')
+                    risk_score = late_risk.get('risk_score', 0)
+                    reasoning_text = late_risk.get('reasoning', '')
+                    
+                    # Build risk list HTML separately
+                    risk_items = ''.join([f'<li>{risk}</li>' for risk in late_risk.get('key_risks', [])])
+                    
+                    # Build late entry warning HTML with single quotes to avoid conflicts
+                    late_entry_warning = (
+                        f"<div style='background: rgba(255,68,68,0.15); border: 2px solid {warning_color}; "
+                        f"padding: 1rem; border-radius: 8px; margin: 1rem 0;'>"
+                        f"<strong style='color: {warning_color};'>{warning_emoji} LATE ENTRY RISK: {risk_level_entry}</strong>"
+                        f"<p style='margin: 0.5rem 0; font-size: 0.95rem;'>Risk Score: {risk_score}% | Action: {action}</p>"
+                        f"<p style='margin: 0.5rem 0; font-size: 0.9rem; color: #ccc;'>{reasoning_text}</p>"
+                        f"<details style='margin-top: 0.5rem;'>"
+                        f"<summary style='cursor: pointer; color: {warning_color};'>Key Risks</summary>"
+                        f"<ul style='margin: 0.5rem 0; padding-left: 1.5rem;'>{risk_items}</ul>"
+                        f"</details></div>"
+                    )
+            
+            # Build main card HTML
+            main_html = f"""
             <div style="background: {bg_color}; border-left: 6px solid {border_color}; padding: 1.5rem; border-radius: 10px; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <h2 style="margin:0; color: {border_color};">{emoji} {label}: <strong style="font-size: 1.4em;">{symbol}</strong></h2>
@@ -217,6 +301,7 @@ class TradingDashboard:
                         RISK: {risk_level.upper()}
                     </span>
                 </div>
+                {late_entry_warning}
                 <p style="margin: 0.8rem 0; font-size: 1.1rem; line-height: 1.5; color: #fff;">{reasoning}</p>
                 <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 5px; margin: 0.8rem 0;">
                     <strong style="color: {border_color};">⚡ Catalysts:</strong> {catalysts_html}
@@ -229,7 +314,9 @@ class TradingDashboard:
                     <span>🤖 <strong>Source:</strong> {data.get('source', 'AI')}</span>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+            
+            st.markdown(main_html, unsafe_allow_html=True)
             
             # Add quick action buttons
             col1, col2, col3, col4 = st.columns([1.5, 1.5, 1, 3])
@@ -424,10 +511,10 @@ class TradingDashboard:
         # Calculate monthly score
         with st.spinner("🔬 Calculating monthly score..."):
             try:
-                # Fetch news and sentiment
+                # Fetch news and sentiment (with Gemini AI enhancement)
                 news_articles = self.news_aggregator.fetch_all_news(symbol)
                 news_sentiment = self.sentiment_analyzer.calculate_aggregate_sentiment(
-                    news_articles, days=7
+                    news_articles, days=7, symbol=symbol
                 ) if news_articles else None
                 
                 # Fetch social sentiment
@@ -495,6 +582,16 @@ class TradingDashboard:
                 <div style="font-size: 1.2rem; margin-top: 0.5rem;">{recommendation}</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Display late entry penalty warning if applicable
+            late_entry_penalty = score_data.get('late_entry_penalty', 0)
+            if late_entry_penalty > 0:
+                original_score = score_data.get('original_score', score)
+                late_warning = score_data.get('late_entry_warning', '')
+                st.warning(f"⚠️ **Late Entry Penalty: -{late_entry_penalty} points**")
+                st.caption(f"Original Score: {original_score}/100 → Final Score: {score}/100")
+                if late_warning:
+                    st.caption(f"🚨 {late_warning}")
             
             # Confidence
             confidence = score_data.get('confidence', 'MEDIUM')
@@ -1062,15 +1159,21 @@ class TradingDashboard:
             st.metric("vs SMA50", f"{sma50_dist:+.1f}%")
     
     def _render_ml_predictions(self):
-        """Render ML predictions tab with ensemble forecasting"""
-        st.header("🤖 Quantitative Model Ensemble")
-        st.markdown("*Multi-factor predictive models with institutional-grade backtesting*")
+        """Render ML predictions tab with ensemble forecasting + Gemini AI"""
+        st.header("🤖 Quantitative Model Ensemble + AI")
+        st.markdown("*Multi-factor predictive models enhanced with Gemini AI intelligence*")
         
-        # Professional system status
-        st.success("""
-        🎯 **MODEL STATUS**: Active ensemble of 4 validated algorithms with real-time performance tracking.
-        Risk-adjusted predictions with confidence intervals and drawdown controls.
-        """)
+        # System status with Gemini indicator
+        if self.gemini_analyzer.enabled:
+            st.success("""
+            🎯 **MODEL STATUS**: Active ensemble of 4 ML algorithms + Gemini AI (25% weight).
+            AI-enhanced predictions with news sentiment and market context analysis.
+            """)
+        else:
+            st.warning("""
+            🎯 **MODEL STATUS**: Active ensemble of 4 validated algorithms (Traditional Mode).
+            Configure GEMINI_API_KEY in .env to enable AI-enhanced predictions.
+            """)
         
         # Symbol selection
         watchlist = st.session_state.get('watchlist', self._get_default_watchlist())
@@ -1195,12 +1298,22 @@ class TradingDashboard:
             if self.ml_predictor.needs_retraining():
                 st.info("ℹ️ Models are outdated (>7 days old). Consider retraining for best accuracy.")
             
-            with st.spinner("🔮 Generating prediction..."):
+            with st.spinner("🔮 Generating AI-enhanced prediction..."):
                 # Update forecast horizon
                 self.ml_predictor.forecast_days = forecast_horizon
                 
-                # Generate prediction
-                prediction = self.ml_predictor.predict_price(data, selected_symbol)
+                # Fetch news articles for Gemini AI analysis
+                news_articles = []
+                if self.gemini_analyzer.enabled:
+                    try:
+                        news_articles = self.news_aggregator.fetch_all_news(selected_symbol)
+                        if news_articles:
+                            st.info(f"📰 Analyzing {len(news_articles)} news articles with Gemini AI...")
+                    except Exception as e:
+                        self.logger.warning(f"News fetch failed: {e}")
+                
+                # Generate prediction with news context
+                prediction = self.ml_predictor.predict_price(data, selected_symbol, news_articles)
             
             if prediction['status'] == 'success':
                 # Display prediction summary
@@ -1214,7 +1327,7 @@ class TradingDashboard:
                     emoji = "📈"
                 elif change_pct < -5:
                     color = "#ef5350"  # Red
-                    emoji = "�"
+                    emoji = "📉"
                 else:
                     color = "#757575"  # Gray
                     emoji = "➡️"
@@ -1241,6 +1354,39 @@ class TradingDashboard:
                 """, unsafe_allow_html=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
+                
+                # Display Gemini AI insights if available
+                if prediction.get('source') == 'hybrid-gemini' and prediction.get('gemini_prediction'):
+                    gemini_data = prediction['gemini_prediction']
+                    st.markdown("### 🤖 Gemini AI Analysis")
+                    
+                    col_g1, col_g2, col_g3 = st.columns(3)
+                    with col_g1:
+                        direction = gemini_data.get('predicted_direction', 'neutral')
+                        direction_emoji = "📈" if direction == 'bullish' else "📉" if direction == 'bearish' else "➡️"
+                        st.metric("AI Direction", f"{direction_emoji} {direction.upper()}")
+                    with col_g2:
+                        ai_confidence = gemini_data.get('confidence', 0)
+                        st.metric("AI Confidence", f"{ai_confidence}%")
+                    with col_g3:
+                        target_price = gemini_data.get('target_price', 0)
+                        if target_price:
+                            st.metric("AI Target", f"${target_price:.2f}")
+                    
+                    if gemini_data.get('reasoning'):
+                        st.info(f"**AI Reasoning:** {gemini_data['reasoning']}")
+                    
+                    if gemini_data.get('key_catalysts'):
+                        st.markdown("**⚡ Key Catalysts:**")
+                        for catalyst in gemini_data['key_catalysts'][:3]:
+                            st.markdown(f"- {catalyst}")
+                    
+                    if gemini_data.get('key_risks'):
+                        st.markdown("**⚠️ Key Risks:**")
+                        for risk in gemini_data['key_risks'][:3]:
+                            st.markdown(f"- {risk}")
+                    
+                    st.markdown("---")
                 
                 # Metrics row
                 col1, col2, col3, col4 = st.columns(4)
@@ -1321,6 +1467,10 @@ class TradingDashboard:
                 
                 models_df = pd.DataFrame(models_data)
                 st.dataframe(models_df, use_container_width=True, hide_index=True)
+                
+                # Highlight Gemini contribution if present
+                if 'gemini_ai' in prediction['individual_predictions']:
+                    st.success("✨ **Gemini AI Contribution:** The ensemble includes AI-powered analysis of news, technical patterns, and market context.")
                 
                 # Visualization: Prediction chart
                 st.markdown("---")
@@ -1836,8 +1986,8 @@ class TradingDashboard:
             st.subheader("Alert Configuration")
             
             st.checkbox("Desktop Notifications", value=True)
-            st.checkbox("Email Alerts", value=False)
-            st.checkbox("Telegram Alerts", value=False)
+            st.checkbox("Email Alerts", value=True)
+            st.checkbox("Telegram Alerts", value=True)
             st.checkbox("Audio Alerts", value=True)
             
             if st.button("🔔 Test All Alerts"):

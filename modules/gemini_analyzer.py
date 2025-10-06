@@ -244,3 +244,383 @@ Keep it professional, concise, and actionable. No investment advice disclaimers.
         except Exception as e:
             self.logger.error(f"Failed to generate insight: {e}")
             return None
+    
+    def analyze_sentiment_ai(self, articles: List[Dict[str, Any]], symbol: str) -> Optional[Dict[str, Any]]:
+        """
+        Advanced sentiment analysis using Gemini AI
+        
+        Args:
+            articles: List of news articles
+            symbol: Stock symbol
+            
+        Returns:
+            AI-powered sentiment analysis with detailed insights
+        """
+        if not self.enabled or not articles:
+            return None
+        
+        try:
+            # Prepare articles summary
+            news_text = self._prepare_news_summary(articles[:30])
+            
+            prompt = f"""Analyze the sentiment and market implications for {symbol} based on these news articles:
+
+{news_text}
+
+Provide a comprehensive sentiment analysis in JSON format:
+{{
+    "sentiment_score": -1.0 to 1.0,
+    "sentiment_label": "Very Positive/Positive/Neutral/Negative/Very Negative",
+    "confidence": 0-100,
+    "key_themes": ["theme1", "theme2", "theme3"],
+    "bullish_factors": ["factor1", "factor2"],
+    "bearish_factors": ["factor1", "factor2"],
+    "market_impact": "High/Medium/Low",
+    "sentiment_trend": "improving/stable/deteriorating",
+    "ai_summary": "2-3 sentence summary of overall sentiment and implications"
+}}
+
+Consider:
+- Overall tone and emotional content
+- Specific events and their implications
+- Market reaction expectations
+- Trend changes in sentiment over time
+
+Return ONLY valid JSON."""
+
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Clean markdown
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            result = json.loads(result_text)
+            result['source'] = 'gemini-ai'
+            result['articles_analyzed'] = len(articles)
+            
+            self.logger.info(f"✅ Gemini sentiment analysis for {symbol}: {result.get('sentiment_label')} ({result.get('sentiment_score')})")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Gemini sentiment analysis failed: {e}")
+            return None
+    
+    def predict_price_movement_ai(self, symbol: str, technical_data: Dict[str, Any], 
+                                  news_articles: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        AI-powered price movement prediction using Gemini
+        
+        Args:
+            symbol: Stock symbol
+            technical_data: Technical indicators and price data
+            news_articles: Recent news articles
+            
+        Returns:
+            AI prediction with rationale
+        """
+        if not self.enabled:
+            return None
+        
+        try:
+            # Prepare context
+            news_summary = self._prepare_news_summary(news_articles[:20]) if news_articles else "No recent news"
+            
+            prompt = f"""As an expert quantitative analyst, predict the price movement for {symbol} over the next 30 days.
+
+TECHNICAL DATA:
+- Current Price: ${technical_data.get('current_price', 0):.2f}
+- RSI: {technical_data.get('rsi', 50):.1f}
+- MACD: {technical_data.get('macd_signal', 'neutral')}
+- Trend: {technical_data.get('trend', 'neutral')}
+- Volume: {technical_data.get('volume_status', 'normal')}
+- Volatility: {technical_data.get('volatility', 0):.2f}%
+
+RECENT NEWS:
+{news_summary[:1000]}
+
+Provide prediction in JSON format:
+{{
+    "predicted_direction": "bullish/neutral/bearish",
+    "predicted_change_pct": -50 to 50,
+    "confidence": 0-100,
+    "target_price": float,
+    "support_level": float,
+    "resistance_level": float,
+    "key_catalysts": ["catalyst1", "catalyst2"],
+    "key_risks": ["risk1", "risk2"],
+    "time_horizon": "7-30 days",
+    "reasoning": "Detailed 2-3 sentence explanation of prediction",
+    "technical_factors": ["factor1", "factor2"],
+    "fundamental_factors": ["factor1", "factor2"]
+}}
+
+Base your prediction on:
+1. Technical setup and momentum
+2. News sentiment and catalysts
+3. Market context and sector trends
+4. Historical patterns
+
+Return ONLY valid JSON."""
+
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Clean markdown
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            result = json.loads(result_text)
+            result['source'] = 'gemini-ai'
+            result['symbol'] = symbol
+            result['prediction_date'] = datetime.now().isoformat()
+            
+            self.logger.info(f"🔮 Gemini prediction for {symbol}: {result.get('predicted_direction')} "
+                           f"{result.get('predicted_change_pct'):+.1f}% (confidence: {result.get('confidence')}%)")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Gemini price prediction failed: {e}")
+            return None
+    
+    def detect_late_entry_risk(self, symbol: str, price_data: Dict[str, Any], 
+                               news_articles: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Detect if it's too late to enter a position (FOMO detection)
+        Analyzes price momentum, technical indicators, and timing to warn against buying at peaks
+        
+        Args:
+            symbol: Stock symbol
+            price_data: Dictionary with price and technical data
+            news_articles: Optional news articles for context
+            
+        Returns:
+            Dictionary with late entry risk assessment
+        """
+        if not self.enabled:
+            return self._fallback_late_entry_check(price_data)
+        
+        try:
+            # Prepare context
+            news_summary = self._prepare_news_summary(news_articles[:20]) if news_articles else "No recent news"
+            
+            prompt = f"""As a risk management expert, analyze if it's too late to enter a position on {symbol}.
+
+TECHNICAL DATA:
+- Current Price: ${price_data.get('current_price', 0):.2f}
+- 1-Day Change: {price_data.get('change_1d', 0):+.2f}%
+- 5-Day Change: {price_data.get('change_5d', 0):+.2f}%
+- 20-Day Change: {price_data.get('change_20d', 0):+.2f}%
+- RSI: {price_data.get('rsi', 50):.1f}
+- Distance from 20-day MA: {price_data.get('distance_from_ma20', 0):+.2f}%
+- Distance from 50-day MA: {price_data.get('distance_from_ma50', 0):+.2f}%
+- Volume vs Average: {price_data.get('volume_ratio', 1):.2f}x
+- 52-Week High Distance: {price_data.get('distance_from_52w_high', 0):+.2f}%
+
+RECENT NEWS:
+{news_summary[:800]}
+
+CRITICAL ANALYSIS - Determine if entry is risky (FOMO territory):
+
+Consider these RED FLAGS:
+1. 📈 **Parabolic Move**: >15% in 5 days or >30% in 20 days = likely overextended
+2. 🔥 **Overbought**: RSI > 75 = exhaustion likely
+3. 📏 **Too Far from MA**: >10% above 20-day MA = pullback risk
+4. 🎯 **Near 52W High**: Within 2% of high = resistance zone
+5. 📰 **News Already Priced In**: Event happened >3 days ago = missed move
+6. 📊 **Volume Exhaustion**: High volume without follow-through = top formation
+
+Provide analysis in JSON format:
+{{
+    "late_entry_risk": "LOW/MEDIUM/HIGH/CRITICAL",
+    "risk_score": 0-100,
+    "is_too_late": true/false,
+    "recommended_action": "ENTER/WAIT_FOR_PULLBACK/AVOID",
+    "key_risks": ["risk1", "risk2", "risk3"],
+    "entry_timing": "EXCELLENT/GOOD/FAIR/POOR/TERRIBLE",
+    "suggested_entry_price": float or null,
+    "suggested_stop_loss": float or null,
+    "pullback_probability": 0-100,
+    "reasoning": "2-3 sentence explanation of why entry is/isn't risky",
+    "alternative_strategy": "Suggestion if entry is too late"
+}}
+
+Be CONSERVATIVE. It's better to miss a move than to buy at the top.
+Return ONLY valid JSON."""
+
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Clean markdown
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            result = json.loads(result_text)
+            result['source'] = 'gemini-ai'
+            result['symbol'] = symbol
+            result['analysis_date'] = datetime.now().isoformat()
+            
+            self.logger.info(f"⚠️ Late entry risk for {symbol}: {result.get('late_entry_risk')} "
+                           f"(risk score: {result.get('risk_score')}%) - {result.get('recommended_action')}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Late entry detection failed: {e}")
+            return self._fallback_late_entry_check(price_data)
+    
+    def _fallback_late_entry_check(self, price_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Simple rule-based late entry check without AI
+        """
+        risk_score = 0
+        key_risks = []
+        
+        # Check RSI
+        rsi = price_data.get('rsi', 50)
+        if rsi > 80:
+            risk_score += 35
+            key_risks.append("Extreme overbought (RSI > 80)")
+        elif rsi > 70:
+            risk_score += 25
+            key_risks.append("Overbought conditions (RSI > 70)")
+        
+        # Check price extension
+        change_5d = price_data.get('change_5d', 0)
+        if change_5d > 20:
+            risk_score += 30
+            key_risks.append(f"Parabolic move: +{change_5d:.1f}% in 5 days")
+        elif change_5d > 10:
+            risk_score += 20
+            key_risks.append(f"Strong move: +{change_5d:.1f}% in 5 days")
+        
+        # Check distance from MA
+        distance_ma20 = price_data.get('distance_from_ma20', 0)
+        if distance_ma20 > 15:
+            risk_score += 25
+            key_risks.append(f"Far from 20-MA: +{distance_ma20:.1f}%")
+        elif distance_ma20 > 10:
+            risk_score += 15
+            key_risks.append(f"Extended from 20-MA: +{distance_ma20:.1f}%")
+        
+        # Check 52-week high proximity
+        distance_52w = price_data.get('distance_from_52w_high', -10)
+        if distance_52w > -2:
+            risk_score += 10
+            key_risks.append("Near 52-week high (resistance)")
+        
+        # Determine risk level
+        if risk_score >= 70:
+            risk_level = "CRITICAL"
+            is_too_late = True
+            action = "AVOID"
+            timing = "TERRIBLE"
+        elif risk_score >= 50:
+            risk_level = "HIGH"
+            is_too_late = True
+            action = "WAIT_FOR_PULLBACK"
+            timing = "POOR"
+        elif risk_score >= 30:
+            risk_level = "MEDIUM"
+            is_too_late = False
+            action = "ENTER"
+            timing = "FAIR"
+        else:
+            risk_level = "LOW"
+            is_too_late = False
+            action = "ENTER"
+            timing = "GOOD"
+        
+        return {
+            'late_entry_risk': risk_level,
+            'risk_score': risk_score,
+            'is_too_late': is_too_late,
+            'recommended_action': action,
+            'key_risks': key_risks if key_risks else ["No significant risks detected"],
+            'entry_timing': timing,
+            'suggested_entry_price': None,
+            'suggested_stop_loss': None,
+            'pullback_probability': min(risk_score, 100),
+            'reasoning': f"Rule-based assessment: {risk_level} risk based on technical indicators.",
+            'alternative_strategy': "Wait for pullback to support levels" if is_too_late else "Entry conditions acceptable",
+            'source': 'fallback',
+            'analysis_date': datetime.now().isoformat()
+        }
+    
+    def score_opportunity_ai(self, symbol: str, full_analysis: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        AI-powered opportunity scoring using Gemini
+        
+        Args:
+            symbol: Stock symbol
+            full_analysis: Complete analysis data (technical, sentiment, news)
+            
+        Returns:
+            AI-generated opportunity score and recommendation
+        """
+        if not self.enabled:
+            return None
+        
+        try:
+            prompt = f"""As a professional trader, score this trading opportunity for {symbol} on a 0-100 scale.
+
+COMPLETE ANALYSIS:
+{str(full_analysis)[:3000]}
+
+Provide comprehensive scoring in JSON format:
+{{
+    "opportunity_score": 0-100,
+    "recommendation": "STRONG_BUY/BUY/HOLD/SELL/STRONG_SELL",
+    "conviction": "High/Medium/Low",
+    "entry_quality": 0-100,
+    "risk_reward_quality": 0-100,
+    "timing_quality": 0-100,
+    "strengths": ["strength1", "strength2", "strength3"],
+    "weaknesses": ["weakness1", "weakness2"],
+    "critical_factors": ["factor1", "factor2"],
+    "optimal_entry": float,
+    "stop_loss": float,
+    "profit_target": float,
+    "position_sizing": "1-5% of portfolio",
+    "time_horizon": "days/weeks/months",
+    "ai_recommendation": "Detailed 3-4 sentence trading recommendation"
+}}
+
+Evaluate based on:
+1. Technical setup quality (trend, momentum, support/resistance)
+2. Risk/reward ratio
+3. Sentiment and catalyst strength
+4. Entry timing and market conditions
+5. Overall probability of success
+
+Be honest and critical. Return ONLY valid JSON."""
+
+            response = self.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # Clean markdown
+            if result_text.startswith('```'):
+                result_text = result_text.split('```')[1]
+                if result_text.startswith('json'):
+                    result_text = result_text[4:]
+            
+            import json
+            result = json.loads(result_text)
+            result['source'] = 'gemini-ai'
+            result['symbol'] = symbol
+            result['analysis_date'] = datetime.now().isoformat()
+            
+            self.logger.info(f"⭐ Gemini opportunity score for {symbol}: {result.get('opportunity_score')}/100 - {result.get('recommendation')}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Gemini opportunity scoring failed: {e}")
+            return None

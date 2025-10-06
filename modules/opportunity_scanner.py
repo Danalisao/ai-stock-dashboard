@@ -159,19 +159,21 @@ class OpportunityScanner:
         'XLY': 'Consumer Discretionary ETF',
     }
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], gemini_analyzer=None):
         """
         Initialize opportunity scanner
         
         Args:
             config: Configuration dictionary
+            gemini_analyzer: Optional GeminiAnalyzer for AI-powered opportunity detection
         """
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self.gemini_analyzer = gemini_analyzer
         
-        # Initialize components
+        # Initialize components (with Gemini integration)
         self.technical_indicators = TechnicalIndicators()
-        self.sentiment_analyzer = SentimentAnalyzer()
+        self.sentiment_analyzer = SentimentAnalyzer(config, gemini_analyzer)
         self.news_aggregator = NewsAggregator(config)
         self.monthly_signals = MonthlySignals(
             config,
@@ -184,7 +186,10 @@ class OpportunityScanner:
         self.max_workers = 10  # Parallel processing
         self.scan_period = '3mo'  # 3 mois de données historiques
         
-        self.logger.info(f"Opportunity Scanner initialized with {len(self.watchlist)} stocks")
+        if gemini_analyzer and gemini_analyzer.enabled:
+            self.logger.info(f"🤖 Opportunity Scanner initialized with Gemini AI ({len(self.watchlist)} stocks)")
+        else:
+            self.logger.info(f"Opportunity Scanner initialized ({len(self.watchlist)} stocks)")
     
     def scan_all_opportunities(self, custom_watchlist: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
@@ -318,6 +323,55 @@ class OpportunityScanner:
                 'position_size': score_data['recommendation']['position_size'],
                 'description': score_data['recommendation']['description'],
             }
+            
+            # 🤖 ENHANCE WITH GEMINI AI if available
+            if self.gemini_analyzer and self.gemini_analyzer.enabled:
+                try:
+                    # Prepare full analysis for Gemini
+                    full_analysis = {
+                        'symbol': symbol,
+                        'price_data': {
+                            'current': current_price,
+                            'entry': score_data['entry_price'],
+                            'target': score_data['target_price'],
+                            'stop_loss': score_data['stop_loss']
+                        },
+                        'technical_scores': {
+                            'trend': score_data['trend_score'],
+                            'momentum': score_data['momentum_score'],
+                            'volume': score_data['volume_score'],
+                            'divergence': score_data['divergence_score']
+                        },
+                        'sentiment': {
+                            'score': score_data['sentiment_score'],
+                            'news': news_sentiment
+                        },
+                        'risk_metrics': {
+                            'risk_reward': score_data['risk_reward_ratio'],
+                            'volatility': volatility,
+                            'volume_ratio': volume_ratio
+                        },
+                        'overall_score': score_data['total_score']
+                    }
+                    
+                    gemini_score = self.gemini_analyzer.score_opportunity_ai(symbol, full_analysis)
+                    
+                    if gemini_score:
+                        # Blend traditional and AI scores
+                        ai_opportunity_score = gemini_score.get('opportunity_score', score_data['total_score'])
+                        blended_score = (score_data['total_score'] * 0.6) + (ai_opportunity_score * 0.4)
+                        
+                        opportunity['score'] = round(blended_score, 1)
+                        opportunity['ai_score'] = ai_opportunity_score
+                        opportunity['ai_recommendation'] = gemini_score.get('ai_recommendation')
+                        opportunity['ai_strengths'] = gemini_score.get('strengths', [])
+                        opportunity['ai_weaknesses'] = gemini_score.get('weaknesses', [])
+                        opportunity['ai_conviction'] = gemini_score.get('conviction')
+                        opportunity['source'] = 'hybrid-gemini'
+                        
+                        self.logger.debug(f"✅ Enhanced {symbol} with Gemini: {blended_score:.1f}")
+                except Exception as e:
+                    self.logger.debug(f"Gemini enhancement failed for {symbol}: {e}")
             
             return opportunity
             

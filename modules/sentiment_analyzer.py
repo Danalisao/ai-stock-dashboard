@@ -42,15 +42,17 @@ class SentimentAnalyzer:
         'company', 'earnings', 'revenue', 'quarter', 'fiscal'
     }
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, gemini_analyzer=None):
         """
         Initialize sentiment analyzer
         
         Args:
             config: Optional configuration dictionary
+            gemini_analyzer: Optional GeminiAnalyzer instance for AI-powered analysis
         """
         self.config = config.get('news', {}).get('sentiment', {}) if config else {}
         self.logger = logging.getLogger(__name__)
+        self.gemini_analyzer = gemini_analyzer
         
         # Initialize sentiment analyzers
         try:
@@ -60,11 +62,21 @@ class SentimentAnalyzer:
             self.logger.error(f"Error initializing VADER: {e}")
             self.vader = None
         
-        # Get weights from config
-        self.vader_weight = self.config.get('vader_weight', 0.4)
-        self.textblob_weight = self.config.get('textblob_weight', 0.3)
-        self.keyword_weight = self.config.get('keyword_weight', 0.2)
-        self.social_weight = self.config.get('social_weight', 0.1)
+        # Get weights from config (adjusted for Gemini integration)
+        if gemini_analyzer and gemini_analyzer.enabled:
+            # When Gemini is available, give it higher weight
+            self.vader_weight = self.config.get('vader_weight', 0.25)
+            self.textblob_weight = self.config.get('textblob_weight', 0.20)
+            self.keyword_weight = self.config.get('keyword_weight', 0.15)
+            self.gemini_weight = self.config.get('gemini_weight', 0.40)  # Gemini gets highest weight
+            self.logger.info("🤖 Sentiment analyzer initialized with Gemini AI integration")
+        else:
+            # Traditional weights when Gemini is not available
+            self.vader_weight = self.config.get('vader_weight', 0.4)
+            self.textblob_weight = self.config.get('textblob_weight', 0.3)
+            self.keyword_weight = self.config.get('keyword_weight', 0.2)
+            self.gemini_weight = 0.0
+            self.logger.info("Sentiment analyzer initialized (traditional mode)")
     
     def analyze_article(self, article: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -227,13 +239,15 @@ class SentimentAnalyzer:
         return analyzed_articles
     
     def calculate_aggregate_sentiment(self, articles: List[Dict[str, Any]], 
-                                      days: int = 7) -> Dict[str, Any]:
+                                      days: int = 7, symbol: str = None) -> Dict[str, Any]:
         """
         Calculate aggregate sentiment from multiple articles
+        Enhanced with Gemini AI when available
         
         Args:
             articles: List of analyzed articles
             days: Number of days to consider
+            symbol: Stock symbol (for Gemini analysis)
             
         Returns:
             Dictionary with aggregate metrics
@@ -268,7 +282,7 @@ class SentimentAnalyzer:
         if not recent_articles:
             recent_articles = articles  # Use all if filtering fails
         
-        # Calculate metrics
+        # Calculate traditional metrics
         sentiments = [a.get('sentiment_score', 0.0) for a in recent_articles]
         average_sentiment = sum(sentiments) / len(sentiments)
         
@@ -302,7 +316,7 @@ class SentimentAnalyzer:
         agreement = (max(positive_count, negative_count, neutral_count) / len(sentiments)) if sentiments else 0.0
         confidence = (article_confidence + agreement) / 2.0
         
-        return {
+        result = {
             'average_sentiment': round(average_sentiment, 3),
             'weighted_sentiment': round(weighted_sentiment, 3),
             'positive_count': positive_count,
@@ -310,8 +324,43 @@ class SentimentAnalyzer:
             'neutral_count': neutral_count,
             'total_articles': len(recent_articles),
             'sentiment_trend': trend,
-            'confidence': round(confidence, 3)
+            'confidence': round(confidence, 3),
+            'source': 'traditional'
         }
+        
+        # 🤖 ENHANCE WITH GEMINI AI if available
+        if self.gemini_analyzer and self.gemini_analyzer.enabled and symbol:
+            try:
+                gemini_sentiment = self.gemini_analyzer.analyze_sentiment_ai(recent_articles, symbol)
+                if gemini_sentiment:
+                    # Combine traditional and Gemini sentiment
+                    gemini_score = gemini_sentiment.get('sentiment_score', 0.0)
+                    
+                    # Weighted combination
+                    combined_sentiment = (
+                        weighted_sentiment * (1 - self.gemini_weight) +
+                        gemini_score * self.gemini_weight
+                    )
+                    
+                    result['weighted_sentiment'] = round(combined_sentiment, 3)
+                    result['gemini_sentiment'] = round(gemini_score, 3)
+                    result['gemini_label'] = gemini_sentiment.get('sentiment_label')
+                    result['ai_summary'] = gemini_sentiment.get('ai_summary')
+                    result['key_themes'] = gemini_sentiment.get('key_themes', [])
+                    result['bullish_factors'] = gemini_sentiment.get('bullish_factors', [])
+                    result['bearish_factors'] = gemini_sentiment.get('bearish_factors', [])
+                    result['market_impact'] = gemini_sentiment.get('market_impact')
+                    result['source'] = 'hybrid-gemini'
+                    
+                    # Update confidence with Gemini
+                    gemini_confidence = gemini_sentiment.get('confidence', 50) / 100.0
+                    result['confidence'] = round((confidence + gemini_confidence) / 2.0, 3)
+                    
+                    self.logger.info(f"✅ Enhanced sentiment with Gemini AI for {symbol}")
+            except Exception as e:
+                self.logger.warning(f"Gemini enhancement failed, using traditional: {e}")
+        
+        return result
     
     def get_sentiment_emoji(self, score: float) -> str:
         """

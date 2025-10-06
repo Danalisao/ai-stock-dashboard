@@ -79,6 +79,73 @@ class MonthlySignals:
                 volume_score * self.volume_weight
             )
             
+            # ⚠️ APPLY LATE ENTRY PENALTY
+            late_entry_penalty = 0
+            late_entry_warning = None
+            
+            # Check for late entry risk (overextended moves)
+            try:
+                current_price = data['Close'].iloc[-1]
+                
+                # Calculate price extension metrics
+                change_5d = ((data['Close'].iloc[-1] / data['Close'].iloc[-6]) - 1) * 100 if len(data) > 5 else 0
+                change_20d = ((data['Close'].iloc[-1] / data['Close'].iloc[-21]) - 1) * 100 if len(data) > 20 else 0
+                
+                # Calculate RSI
+                delta = data['Close'].diff()
+                gain = delta.where(delta > 0, 0).rolling(14).mean()
+                loss = -delta.where(delta < 0, 0).rolling(14).mean()
+                rs = gain / loss
+                rsi = (100 - (100 / (1 + rs))).iloc[-1] if not rs.empty else 50
+                
+                # Calculate distance from moving averages
+                ma_20 = data['Close'].rolling(20).mean().iloc[-1] if len(data) > 20 else current_price
+                ma_50 = data['Close'].rolling(50).mean().iloc[-1] if len(data) > 50 else current_price
+                distance_ma20 = ((current_price / ma_20) - 1) * 100 if ma_20 > 0 else 0
+                distance_ma50 = ((current_price / ma_50) - 1) * 100 if ma_50 > 0 else 0
+                
+                # Apply penalties based on late entry indicators
+                
+                # 1. Extreme RSI penalty (overbought)
+                if rsi > 80:
+                    late_entry_penalty += 25
+                    late_entry_warning = f"CRITICAL: Extreme overbought (RSI: {rsi:.1f})"
+                elif rsi > 70:
+                    late_entry_penalty += 15
+                    late_entry_warning = f"WARNING: Overbought conditions (RSI: {rsi:.1f})"
+                
+                # 2. Parabolic move penalty
+                if change_5d > 20:
+                    late_entry_penalty += 20
+                    if not late_entry_warning:
+                        late_entry_warning = f"WARNING: Parabolic move (+{change_5d:.1f}% in 5 days)"
+                elif change_5d > 15:
+                    late_entry_penalty += 10
+                
+                # 3. Extended from MA penalty
+                if distance_ma20 > 15:
+                    late_entry_penalty += 15
+                    if not late_entry_warning:
+                        late_entry_warning = f"WARNING: Far from 20-MA (+{distance_ma20:.1f}%)"
+                elif distance_ma20 > 10:
+                    late_entry_penalty += 8
+                
+                # 4. Long-term extension penalty
+                if change_20d > 40:
+                    late_entry_penalty += 10
+                
+                # Log penalty if significant
+                if late_entry_penalty > 0:
+                    self.logger.warning(f"⚠️ Late entry penalty applied: -{late_entry_penalty} points for {symbol}")
+                    
+            except Exception as e:
+                self.logger.debug(f"Could not calculate late entry penalty: {e}")
+            
+            # Apply penalty (cap at 40 points maximum)
+            late_entry_penalty = min(late_entry_penalty, 40)
+            original_score = total_score
+            total_score = total_score - late_entry_penalty
+            
             # Ensure score is 0-100
             total_score = max(0, min(100, total_score))
             
@@ -106,6 +173,9 @@ class MonthlySignals:
             return {
                 'date': datetime.now().isoformat(),
                 'total_score': round(total_score, 2),
+                'original_score': round(original_score, 2) if late_entry_penalty > 0 else round(total_score, 2),
+                'late_entry_penalty': round(late_entry_penalty, 2),
+                'late_entry_warning': late_entry_warning,
                 'trend_score': round(trend_score, 2),
                 'momentum_score': round(momentum_score, 2),
                 'sentiment_score': round(sentiment_score, 2),

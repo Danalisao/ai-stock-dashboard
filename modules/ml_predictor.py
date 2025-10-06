@@ -43,15 +43,17 @@ class MLPredictor:
     - Time-based features (day of week, month, quarter)
     """
     
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None, gemini_analyzer=None):
         """
         Initialize ML predictor
         
         Args:
             config: Configuration dictionary with ML parameters
+            gemini_analyzer: Optional GeminiAnalyzer for AI-enhanced predictions
         """
         self.config = config.get('ml_predictor', {}) if config else {}
         self.logger = logging.getLogger(__name__)
+        self.gemini_analyzer = gemini_analyzer
         
         # Model parameters
         self.lookback_days = self.config.get('lookback_days', 60)  # Historical window
@@ -59,13 +61,24 @@ class MLPredictor:
         self.retrain_interval = self.config.get('retrain_interval_days', 7)  # Weekly retrain
         self.min_training_samples = self.config.get('min_training_samples', 200)
         
-        # Model weights for ensemble (tuned for financial data)
-        self.model_weights = {
-            'random_forest': 0.35,      # Best for non-linear patterns
-            'gradient_boost': 0.30,      # Good for sequential learning
-            'ridge': 0.20,               # Captures linear trends
-            'svr': 0.15                  # Pattern recognition
-        }
+        # Model weights for ensemble (adjusted for Gemini integration)
+        if gemini_analyzer and gemini_analyzer.enabled:
+            self.model_weights = {
+                'random_forest': 0.25,      # Reduced to make room for Gemini
+                'gradient_boost': 0.25,      # Reduced
+                'ridge': 0.15,               # Reduced
+                'svr': 0.10,                 # Reduced
+                'gemini_ai': 0.25            # AI gets significant weight
+            }
+            self.logger.info("🤖 ML Predictor initialized with Gemini AI integration")
+        else:
+            self.model_weights = {
+                'random_forest': 0.35,      # Best for non-linear patterns
+                'gradient_boost': 0.30,      # Good for sequential learning
+                'ridge': 0.20,               # Captures linear trends
+                'svr': 0.15                  # Pattern recognition
+            }
+            self.logger.info("ML Predictor initialized (traditional mode)")
         
         # Initialize models
         self.models = self._initialize_models()
@@ -81,8 +94,6 @@ class MLPredictor:
         # Model persistence
         self.model_dir = self.config.get('model_dir', 'models')
         os.makedirs(self.model_dir, exist_ok=True)
-        
-        self.logger.info("ML Predictor initialized")
     
     def _initialize_models(self) -> Dict[str, Any]:
         """Initialize ML models with optimized hyperparameters"""
@@ -399,13 +410,14 @@ class MLPredictor:
                 'error': str(e)
             }
     
-    def predict_price(self, data: pd.DataFrame, symbol: str) -> Dict[str, Any]:
+    def predict_price(self, data: pd.DataFrame, symbol: str, news_articles: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Predict future price using ensemble of models
+        Predict future price using ensemble of models + Gemini AI
         
         Args:
             data: Recent historical data
             symbol: Stock ticker symbol
+            news_articles: Optional news articles for Gemini analysis
             
         Returns:
             Prediction results with confidence intervals
@@ -425,26 +437,61 @@ class MLPredictor:
             # Scale features
             latest_scaled = self.scaler.transform(latest_features)
             
-            # Get predictions from each model
+            # Get predictions from each ML model
             predictions_scaled = {}
             for name, model in self.models.items():
                 pred = model.predict(latest_scaled)[0]
                 predictions_scaled[name] = pred
             
-            # Ensemble prediction (weighted average)
-            ensemble_pred_scaled = sum(
-                predictions_scaled[name] * self.model_weights[name]
+            # Current price
+            current_price = data['Close'].iloc[-1]
+            
+            # Traditional ensemble prediction (weighted average of ML models)
+            ml_weights_sum = sum(self.model_weights[name] for name in self.models.keys())
+            ml_ensemble_pred_scaled = sum(
+                predictions_scaled[name] * (self.model_weights[name] / ml_weights_sum)
                 for name in self.models.keys()
             )
             
             # Inverse scale to get actual price change %
-            ensemble_pred = self.target_scaler.inverse_transform([[ensemble_pred_scaled]])[0][0]
+            ml_ensemble_pred = self.target_scaler.inverse_transform([[ml_ensemble_pred_scaled]])[0][0]
+            ml_predicted_price = current_price * (1 + ml_ensemble_pred)
             
-            # Current price
-            current_price = data['Close'].iloc[-1]
+            # 🤖 GET GEMINI AI PREDICTION if available
+            gemini_prediction = None
+            final_predicted_price = ml_predicted_price
+            final_predicted_change = ml_ensemble_pred
             
-            # Predicted price
-            predicted_price = current_price * (1 + ensemble_pred)
+            if self.gemini_analyzer and self.gemini_analyzer.enabled and 'gemini_ai' in self.model_weights:
+                try:
+                    # Prepare technical data for Gemini
+                    technical_data = {
+                        'current_price': float(current_price),
+                        'rsi': float(df_features['rsi'].iloc[-1]) if 'rsi' in df_features else 50.0,
+                        'macd_signal': 'bullish' if df_features['macd_hist'].iloc[-1] > 0 else 'bearish' if 'macd_hist' in df_features else 'neutral',
+                        'trend': 'bullish' if df_features['sma_20'].iloc[-1] < current_price else 'bearish' if 'sma_20' in df_features else 'neutral',
+                        'volume_status': 'high' if df_features['volume_ratio'].iloc[-1] > 1.2 else 'low' if 'volume_ratio' in df_features else 'normal',
+                        'volatility': float(df_features['volatility_20d'].iloc[-1] * 100) if 'volatility_20d' in df_features else 0.0
+                    }
+                    
+                    gemini_prediction = self.gemini_analyzer.predict_price_movement_ai(
+                        symbol, technical_data, news_articles or []
+                    )
+                    
+                    if gemini_prediction:
+                        gemini_change_pct = gemini_prediction.get('predicted_change_pct', 0.0) / 100.0
+                        gemini_price = current_price * (1 + gemini_change_pct)
+                        
+                        # Combine ML and Gemini predictions
+                        gemini_weight = self.model_weights.get('gemini_ai', 0.25)
+                        ml_weight = 1.0 - gemini_weight
+                        
+                        final_predicted_price = (ml_predicted_price * ml_weight) + (gemini_price * gemini_weight)
+                        final_predicted_change = (final_predicted_price / current_price) - 1
+                        
+                        self.logger.info(f"✅ Enhanced ML prediction with Gemini AI for {symbol}")
+                except Exception as e:
+                    self.logger.warning(f"Gemini prediction enhancement failed: {e}")
             
             # Calculate confidence intervals (using prediction spread)
             predictions_unscaled = [
@@ -454,17 +501,17 @@ class MLPredictor:
             std_dev = np.std(predictions_unscaled)
             
             # 95% confidence interval (±1.96 standard deviations)
-            lower_bound = predicted_price - (1.96 * std_dev * current_price)
-            upper_bound = predicted_price + (1.96 * std_dev * current_price)
+            lower_bound = final_predicted_price - (1.96 * std_dev * current_price)
+            upper_bound = final_predicted_price + (1.96 * std_dev * current_price)
             
             # Model agreement (lower std = higher agreement)
             agreement_score = max(0, 100 - (std_dev * 1000))  # Normalized to 0-100
             
-            return {
+            result = {
                 'symbol': symbol,
                 'current_price': float(current_price),
-                'predicted_price': float(predicted_price),
-                'predicted_change_pct': float(ensemble_pred * 100),
+                'predicted_price': float(final_predicted_price),
+                'predicted_change_pct': float(final_predicted_change * 100),
                 'forecast_horizon_days': self.forecast_days,
                 'prediction_date': datetime.now().isoformat(),
                 'target_date': (datetime.now() + timedelta(days=self.forecast_days)).isoformat(),
@@ -482,8 +529,23 @@ class MLPredictor:
                     for name, p in predictions_scaled.items()
                 },
                 'model_metrics': self.model_metrics,
-                'status': 'success'
+                'status': 'success',
+                'source': 'hybrid-gemini' if gemini_prediction else 'ml-only'
             }
+            
+            # Add Gemini details if available
+            if gemini_prediction:
+                result['gemini_prediction'] = {
+                    'predicted_direction': gemini_prediction.get('predicted_direction'),
+                    'predicted_change_pct': gemini_prediction.get('predicted_change_pct'),
+                    'confidence': gemini_prediction.get('confidence'),
+                    'target_price': gemini_prediction.get('target_price'),
+                    'key_catalysts': gemini_prediction.get('key_catalysts', []),
+                    'key_risks': gemini_prediction.get('key_risks', []),
+                    'reasoning': gemini_prediction.get('reasoning')
+                }
+            
+            return result
             
         except Exception as e:
             self.logger.error(f"Prediction failed for {symbol}: {e}")
