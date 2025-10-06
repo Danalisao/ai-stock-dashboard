@@ -1,29 +1,43 @@
-# 🤖 Google Gemini AI Integration
+# 🤖 Google Gemini AI Integration - Explosive Opportunity Discovery
 
 ## Overview
 
-L'application utilise **Google Gemini Flash 2.5** pour analyser l'actualité financière et identifier automatiquement l'action la plus tendance du moment.
+L'application utilise **Google Gemini Flash 2.5** pour scanner **TOUT LE MARCHÉ** et identifier automatiquement l'action avec le **PLUS HAUT POTENTIEL EXPLOSIF** dans les 7-30 prochains jours.
 
-## Fonctionnalités AI
+## 🚀 Fonctionnalités AI - Market-Wide Discovery
 
-### 1. Stock Trending Analysis
-À l'ouverture de l'application, Gemini analyse automatiquement :
-- ✅ Toutes les actualités récentes de votre watchlist
-- ✅ Fréquence des mentions par action
-- ✅ Importance des news (earnings, produits, régulation, etc.)
-- ✅ Sentiment du marché (bullish/neutral/bearish)
-- ✅ Impact potentiel sur le prix
+### 1. Explosive Opportunity Scanning
+À l'ouverture de l'application, Gemini analyse **100+ articles** de sources multiples :
+- 📰 **MarketWatch, Seeking Alpha, Yahoo Finance, Benzinga**
+- 🔍 **Détection intelligente de symboles** (même non-explicites)
+- ⚡ **Identification de catalyseurs explosifs** (earnings, FDA, M&A, produits)
+- 📈 **Analyse de momentum et sentiment surge**
+- 💎 **Score de potentiel explosif** (0-100% confidence)
+- ⏱️ **Timeframe estimé** pour l'explosion
+- 🎯 **Niveau de risque** (low/medium/high)
 
-### 2. Affichage Banner
-Un banner en haut de l'application affiche :
-- 🚀 **Action Tendance** : Le symbole identifié
+### 2. Affichage Banner - Explosive Opportunity
+Un banner premium en haut de l'application affiche :
+- 💎 **Action à Potentiel Explosif** : Symbole identifié (n'importe quelle action du marché)
 - 🎯 **Confidence** : Score de confiance AI (0-100%)
-- 📰 **Mentions** : Nombre d'articles
+- ⚡ **Catalyseurs** : Événements spécifiques qui vont provoquer l'explosion
+- 📰 **Articles** : Nombre d'articles analysés
 - 💹 **Sentiment** : Bullish/Neutral/Bearish
-- 🤖 **Source** : gemini-2.0-flash-exp ou fallback
+- ⏱️ **Timeframe** : Estimation 7-30 jours
+- 🎯 **Risk Level** : Niveau de risque évalué par AI
+- 🤖 **Source** : gemini-2.0-flash-exp
 
-### 3. Fallback Mode
-Si Gemini n'est pas configuré, un système de fallback compte simplement les mentions.
+### 3. Actions Rapides
+- **📊 Deep Analysis** - Analyse complète immédiate de l'action
+- **➕ Add to Watchlist** - Ajout automatique à votre liste
+- **🔄 Refresh** - Force une nouvelle scan du marché
+
+### 4. Intelligence Avancée
+L'AI ne se limite **PAS** à votre watchlist :
+- ✅ **Scan universel** : Analyse TOUT le marché (pas de restrictions)
+- ✅ **Extraction intelligente** : Détecte les symboles même non-mentionnés explicitement
+- ✅ **Priorisation dynamique** : Favorise votre watchlist si pertinent
+- ✅ **Fallback automatique** : Système de secours si Gemini indisponible
 
 ---
 
@@ -93,17 +107,40 @@ Au démarrage, l'application :
 
 ---
 
-## Exemple de Résultat
+## 🎯 Exemple de Résultat
 
+### Scénario 1: High Explosive Potential
 ```markdown
-🚀 AI Trending Stock: AAPL
+💎 HIGH EXPLOSIVE POTENTIAL: NVDA                           [RISK: MEDIUM]
 
-Apple dominates today's financial news with 23 mentions across major outlets. 
-Strong earnings beat and new product launch driving positive sentiment.
+NVIDIA poised for explosive growth with new AI chip launch announcement 
+generating massive buzz. Multiple analyst upgrades and partnership with 
+major cloud providers signal significant revenue expansion incoming.
 
-🎯 Confidence: 87%
-📰 Mentions: 23
+⚡ Catalysts: AI chip launch • Cloud partnerships • Analyst upgrades
+
+🎯 Confidence: 89%
+📰 Articles: 34
 💹 Sentiment: BULLISH
+⏱️ Timeframe: 7-14 days
+🤖 Source: gemini-2.0-flash-exp
+
+[📊 Deep Analysis NVDA] [➕ Add NVDA to Watchlist] [🔄 Refresh]
+```
+
+### Scénario 2: Strong Opportunity
+```markdown
+🚀 STRONG OPPORTUNITY: MRNA                                 [RISK: HIGH]
+
+Moderna's Phase 3 trial results exceed expectations. FDA fast-track 
+approval anticipated within 30 days. High volatility expected.
+
+⚡ Catalysts: FDA approval • Trial success • Market expansion
+
+🎯 Confidence: 72%
+📰 Articles: 18
+💹 Sentiment: BULLISH
+⏱️ Timeframe: 14-30 days
 🤖 Source: gemini-2.0-flash-exp
 ```
 
@@ -122,10 +159,12 @@ Strong earnings beat and new product launch driving positive sentiment.
 
 ### Optimisations Implémentées
 
-- ✅ Cache de 60 minutes pour éviter les requêtes répétées
-- ✅ Limite à 20 stocks de la watchlist
-- ✅ 5 articles max par stock
-- ✅ Fallback automatique si quota dépassé
+- ✅ **Cache de 60 minutes** pour éviter les requêtes répétées
+- ✅ **100 articles généraux** du marché entier (pas limité à watchlist)
+- ✅ **4 sources premium** : MarketWatch, Seeking Alpha, Yahoo, Benzinga
+- ✅ **Fallback intelligent** si quota dépassé
+- ✅ **Extraction multi-symboles** : Détecte tous les tickers mentionnés
+- ✅ **Priorisation optionnelle** de votre watchlist
 
 ---
 
@@ -252,17 +291,31 @@ Répondez en JSON...
 
 ---
 
+## 🎯 Critères d'Analyse Explosive
+
+Gemini évalue chaque action selon 5 critères :
+
+1. **⚡ Catalysts** - Événements déclencheurs (earnings, FDA, M&A, produits)
+2. **📈 Momentum** - Articles multiples, upgrades analystes, price action
+3. **💰 Market Impact** - Annonces de revenus/croissance significatives
+4. **🔥 Sentiment Surge** - Tone bullish, excitement, breakthrough news
+5. **🎯 Timing** - Événements récents/imminents (pas old news)
+
 ## Roadmap AI
 
-- [ ] Sentiment analysis par action (en plus du trending)
-- [ ] Prédiction de mouvement de prix avec Gemini
-- [ ] Résumé quotidien du marché généré par AI
-- [ ] Alertes intelligentes basées sur l'analyse AI
+- [x] **Market-wide explosive opportunity detection** ✅
+- [x] **Multi-source news aggregation** (4 sources premium) ✅
+- [x] **Risk level assessment** ✅
+- [ ] Sentiment analysis temps-réel par action
+- [ ] Prédiction de mouvement de prix intraday avec Gemini
+- [ ] Résumé quotidien personnalisé du marché
+- [ ] Alertes intelligentes push notifications
 - [ ] Multi-langue (FR/EN) selon préférence utilisateur
+- [ ] Backtesting AI predictions pour améliorer accuracy
 
 ---
 
-**Version :** 2.0  
-**Modèle :** gemini-2.0-flash-exp  
+**Version :** 2.5  
+**Modèle :** gemini-2.5-flash  
 **Coût :** Gratuit (1500 req/jour)  
 **Status :** ✅ Production Ready

@@ -30,6 +30,67 @@ class NewsAggregator:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
     
+    def fetch_market_news(self, max_articles: int = 100) -> List[Dict[str, Any]]:
+        """
+        Fetch general market news (not specific to a symbol)
+        Used for discovering trending stocks across the entire market
+        
+        Args:
+            max_articles: Maximum number of articles to fetch
+            
+        Returns:
+            List of news articles from multiple sources
+        """
+        all_articles = []
+        sources = self.config.get('sources', {})
+        
+        try:
+            # MarketWatch RSS
+            if sources.get('marketwatch', True):
+                mw_articles = self._fetch_marketwatch_rss()
+                all_articles.extend(mw_articles[:20])
+                self.logger.info(f"Fetched {len(mw_articles)} articles from MarketWatch")
+                time.sleep(1)
+            
+            # Seeking Alpha RSS
+            if sources.get('seeking_alpha', True):
+                sa_articles = self._fetch_seeking_alpha_rss()
+                all_articles.extend(sa_articles[:20])
+                self.logger.info(f"Fetched {len(sa_articles)} articles from Seeking Alpha")
+                time.sleep(1)
+            
+            # Yahoo Finance Top Stories
+            if sources.get('yahoo_finance', True):
+                yf_articles = self._fetch_yahoo_top_stories()
+                all_articles.extend(yf_articles[:20])
+                self.logger.info(f"Fetched {len(yf_articles)} articles from Yahoo Finance")
+                time.sleep(1)
+            
+            # Benzinga RSS
+            if sources.get('benzinga', True):
+                bz_articles = self._fetch_benzinga_rss()
+                all_articles.extend(bz_articles[:20])
+                self.logger.info(f"Fetched {len(bz_articles)} articles from Benzinga")
+                time.sleep(1)
+            
+            # Deduplicate by URL
+            seen_urls = set()
+            unique_articles = []
+            for article in all_articles:
+                url = article.get('url')
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_articles.append(article)
+                    if len(unique_articles) >= max_articles:
+                        break
+            
+            self.logger.info(f"Total unique market articles: {len(unique_articles)}")
+            return unique_articles[:max_articles]
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching market news: {e}")
+            return []
+    
     def fetch_all_news(self, symbol: str) -> List[Dict[str, Any]]:
         """
         Fetch news from all enabled sources
@@ -290,6 +351,90 @@ class NewsAggregator:
         except Exception as e:
             self.logger.error(f"Error fetching RSS feed {feed_url}: {e}")
         
+        return articles
+    
+    def _fetch_marketwatch_rss(self) -> List[Dict[str, Any]]:
+        """Fetch general market news from MarketWatch RSS"""
+        articles = []
+        try:
+            feed = feedparser.parse("https://www.marketwatch.com/rss/topstories")
+            for entry in feed.entries[:30]:
+                articles.append({
+                    'title': entry.get('title', 'N/A'),
+                    'url': entry.get('link', ''),
+                    'description': entry.get('summary', ''),
+                    'published': entry.get('published', ''),
+                    'source': 'MarketWatch',
+                    'symbol': None  # Will be extracted by AI
+                })
+        except Exception as e:
+            self.logger.error(f"Error fetching MarketWatch RSS: {e}")
+        return articles
+    
+    def _fetch_seeking_alpha_rss(self) -> List[Dict[str, Any]]:
+        """Fetch market news from Seeking Alpha RSS"""
+        articles = []
+        try:
+            feed = feedparser.parse("https://seekingalpha.com/feed.xml")
+            for entry in feed.entries[:30]:
+                articles.append({
+                    'title': entry.get('title', 'N/A'),
+                    'url': entry.get('link', ''),
+                    'description': entry.get('summary', ''),
+                    'published': entry.get('published', ''),
+                    'source': 'Seeking Alpha',
+                    'symbol': None
+                })
+        except Exception as e:
+            self.logger.error(f"Error fetching Seeking Alpha RSS: {e}")
+        return articles
+    
+    def _fetch_yahoo_top_stories(self) -> List[Dict[str, Any]]:
+        """Fetch Yahoo Finance top stories"""
+        articles = []
+        try:
+            url = "https://finance.yahoo.com/"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Find news articles on homepage
+            news_items = soup.find_all('h3', limit=30)
+            for item in news_items:
+                link_tag = item.find('a')
+                if link_tag:
+                    title = link_tag.get_text(strip=True)
+                    href = link_tag.get('href', '')
+                    if href and not href.startswith('http'):
+                        href = f"https://finance.yahoo.com{href}"
+                    
+                    articles.append({
+                        'title': title,
+                        'url': href,
+                        'description': '',
+                        'published': datetime.now().isoformat(),
+                        'source': 'Yahoo Finance',
+                        'symbol': None
+                    })
+        except Exception as e:
+            self.logger.error(f"Error fetching Yahoo top stories: {e}")
+        return articles
+    
+    def _fetch_benzinga_rss(self) -> List[Dict[str, Any]]:
+        """Fetch Benzinga news RSS"""
+        articles = []
+        try:
+            feed = feedparser.parse("https://www.benzinga.com/feed")
+            for entry in feed.entries[:30]:
+                articles.append({
+                    'title': entry.get('title', 'N/A'),
+                    'url': entry.get('link', ''),
+                    'description': entry.get('summary', ''),
+                    'published': entry.get('published', ''),
+                    'source': 'Benzinga',
+                    'symbol': None
+                })
+        except Exception as e:
+            self.logger.error(f"Error fetching Benzinga RSS: {e}")
         return articles
     
     def search_news_by_keyword(self, keywords: List[str], days: int = 7) -> List[Dict[str, Any]]:

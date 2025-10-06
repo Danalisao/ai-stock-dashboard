@@ -136,37 +136,36 @@ class TradingDashboard:
         return []
     
     def _render_trending_stock_banner(self):
-        """Render AI-powered trending stock banner at the top"""
-        # Use session state to cache the trending stock analysis
+        """Render AI-powered explosive opportunity banner at the top"""
+        # Use session state to cache the analysis (refresh every hour)
         if 'trending_stock_data' not in st.session_state or \
            (datetime.now() - st.session_state.get('trending_stock_timestamp', datetime.min)).seconds > 3600:
             
-            with st.spinner("🤖 AI analyzing market news to find trending stock..."):
-                # Get watchlist
+            with st.spinner("🚀 AI scanning entire market for explosive opportunities..."):
+                # Fetch GENERAL market news (not limited to watchlist)
+                all_news = self.news_aggregator.fetch_market_news(max_articles=100)
+                
+                if not all_news or len(all_news) < 10:
+                    self.logger.warning(f"Insufficient market news: {len(all_news)} articles")
+                    return
+                
+                self.logger.info(f"Analyzing {len(all_news)} market articles with Gemini AI")
+                
+                # Optional: Get watchlist for prioritization (not restriction)
                 watchlist = self._get_default_watchlist()
-                if not watchlist:
-                    return
                 
-                # Fetch recent news for all watchlist stocks
-                all_news = []
-                for symbol in watchlist[:20]:  # Limit to first 20 stocks
-                    try:
-                        news = self.news_aggregator.fetch_all_news(symbol)
-                        all_news.extend(news[:5])  # Take 5 most recent per stock
-                    except:
-                        continue
-                
-                if not all_news:
-                    return
-                
-                # Analyze with Gemini
-                trending_data = self.gemini_analyzer.analyze_trending_stock(all_news, watchlist)
+                # Analyze with Gemini to discover explosive opportunities
+                trending_data = self.gemini_analyzer.analyze_trending_stock(
+                    all_news, 
+                    watchlist=watchlist if watchlist else None
+                )
                 
                 if trending_data:
                     st.session_state.trending_stock_data = trending_data
                     st.session_state.trending_stock_timestamp = datetime.now()
+                    self.logger.info(f"✅ AI identified: {trending_data.get('trending_stock')}")
         
-        # Display trending stock banner
+        # Display explosive opportunity banner
         if 'trending_stock_data' in st.session_state:
             data = st.session_state.trending_stock_data
             symbol = data.get('trending_stock', 'N/A')
@@ -174,42 +173,81 @@ class TradingDashboard:
             reasoning = data.get('reasoning', '')
             sentiment = data.get('sentiment', 'neutral')
             news_count = data.get('news_count', 0)
+            catalysts = data.get('explosion_catalysts', data.get('key_topics', []))
+            timeframe = data.get('timeframe', '7-30 days')
+            risk_level = data.get('risk_level', 'medium')
             
-            # Color based on sentiment
-            if sentiment == 'bullish':
-                bg_color = "rgba(0, 255, 136, 0.1)"
+            # Color based on confidence and sentiment
+            if confidence >= 75 and sentiment == 'bullish':
+                bg_color = "rgba(0, 255, 136, 0.15)"
                 border_color = "#00ff88"
+                emoji = "💎"
+                label = "HIGH EXPLOSIVE POTENTIAL"
+            elif confidence >= 60:
+                bg_color = "rgba(255, 200, 0, 0.15)"
+                border_color = "#ffc800"
                 emoji = "🚀"
-            elif sentiment == 'bearish':
-                bg_color = "rgba(255, 100, 100, 0.1)"
-                border_color = "#ff6464"
-                emoji = "⚠️"
+                label = "STRONG OPPORTUNITY"
             else:
                 bg_color = "rgba(100, 150, 255, 0.1)"
                 border_color = "#6496ff"
                 emoji = "📊"
+                label = "POTENTIAL OPPORTUNITY"
+            
+            # Risk badge color
+            risk_colors = {
+                'low': '#00ff88',
+                'medium': '#ffc800',
+                'high': '#ff6464'
+            }
+            risk_color = risk_colors.get(risk_level, '#6496ff')
+            
+            # Catalysts display
+            catalysts_html = " • ".join(catalysts[:3]) if catalysts else "Multiple factors"
             
             st.markdown(f"""
-            <div style="background: {bg_color}; border-left: 4px solid {border_color}; padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
-                <h3 style="margin:0; color: {border_color};">{emoji} AI Trending Stock: <strong>{symbol}</strong></h3>
-                <p style="margin: 0.5rem 0; font-size: 1rem;">{reasoning}</p>
-                <div style="display: flex; gap: 2rem; margin-top: 0.5rem; font-size: 0.9rem; color: #888;">
-                    <span>🎯 Confidence: <strong>{confidence}%</strong></span>
-                    <span>📰 Mentions: <strong>{news_count}</strong></span>
-                    <span>💹 Sentiment: <strong>{sentiment.upper()}</strong></span>
-                    <span>🤖 Source: <strong>{data.get('source', 'AI')}</strong></span>
+            <div style="background: {bg_color}; border-left: 6px solid {border_color}; padding: 1.5rem; border-radius: 10px; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h2 style="margin:0; color: {border_color};">{emoji} {label}: <strong style="font-size: 1.4em;">{symbol}</strong></h2>
+                    <span style="background: {risk_color}; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">
+                        RISK: {risk_level.upper()}
+                    </span>
+                </div>
+                <p style="margin: 0.8rem 0; font-size: 1.1rem; line-height: 1.5; color: #fff;">{reasoning}</p>
+                <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 5px; margin: 0.8rem 0;">
+                    <strong style="color: {border_color};">⚡ Catalysts:</strong> {catalysts_html}
+                </div>
+                <div style="display: flex; gap: 2rem; margin-top: 1rem; font-size: 0.95rem; flex-wrap: wrap;">
+                    <span>🎯 <strong>Confidence:</strong> {confidence}%</span>
+                    <span>📰 <strong>Articles:</strong> {news_count}</span>
+                    <span>💹 <strong>Sentiment:</strong> {sentiment.upper()}</span>
+                    <span>⏱️ <strong>Timeframe:</strong> {timeframe}</span>
+                    <span>🤖 <strong>Source:</strong> {data.get('source', 'AI')}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # Add quick action button
-            col1, col2, col3 = st.columns([1, 1, 4])
+            # Add quick action buttons
+            col1, col2, col3, col4 = st.columns([1.5, 1.5, 1, 3])
             with col1:
-                if st.button(f"📊 Analyze {symbol}", key="analyze_trending"):
+                if st.button(f"📊 Deep Analysis {symbol}", key="analyze_trending", use_container_width=True):
+                    # Add to watchlist if not present
+                    if symbol not in st.session_state.watchlist:
+                        st.session_state.watchlist.append(symbol)
+                        self.db.add_to_watchlist(symbol)
                     st.session_state.selected_symbol = symbol
                     st.rerun()
             with col2:
-                if st.button("🔄 Refresh AI Analysis", key="refresh_trending"):
+                if st.button(f"➕ Add {symbol} to Watchlist", key="add_trending", use_container_width=True):
+                    if symbol not in st.session_state.watchlist:
+                        st.session_state.watchlist.append(symbol)
+                        self.db.add_to_watchlist(symbol)
+                        st.success(f"✅ {symbol} added!")
+                        st.rerun()
+                    else:
+                        st.info(f"{symbol} already in watchlist")
+            with col3:
+                if st.button("🔄 Refresh", key="refresh_trending", use_container_width=True):
                     if 'trending_stock_data' in st.session_state:
                         del st.session_state.trending_stock_data
                     st.rerun()

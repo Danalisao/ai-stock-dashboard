@@ -46,50 +46,67 @@ class GeminiAnalyzer:
             self.enabled = False
     
     def analyze_trending_stock(self, news_articles: List[Dict[str, Any]], 
-                               watchlist: List[str]) -> Optional[Dict[str, Any]]:
+                               watchlist: List[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Analyze news articles to find the most mentioned/trending stock
+        Analyze news articles to discover the stock most likely to EXPLODE
+        Uses AI to identify breakout opportunities across the entire market
         
         Args:
-            news_articles: List of news articles with title, description, content
-            watchlist: List of stock symbols to consider
+            news_articles: List of news articles from general market sources
+            watchlist: Optional list to restrict analysis (None = discover any stock)
             
         Returns:
-            Dictionary with trending stock info and AI analysis
+            Dictionary with explosive opportunity stock info and AI analysis
         """
         if not self.enabled:
             self.logger.warning("Gemini not enabled - using fallback analysis")
-            return self._fallback_analysis(news_articles, watchlist)
+            return self._fallback_analysis(news_articles, watchlist or [])
         
         try:
             # Prepare news summary for Gemini
-            news_text = self._prepare_news_summary(news_articles[:50])  # Limit to 50 articles
+            news_text = self._prepare_news_summary(news_articles[:80])  # More articles for discovery
             
-            # Create prompt for Gemini
-            prompt = f"""Analyze the following financial news articles and identify which stock from this watchlist is the MOST TRENDING today:
+            # Create advanced prompt for opportunity discovery
+            watchlist_constraint = f"\n\nOPTIONAL FILTER: Prioritize these stocks if relevant: {', '.join(watchlist)}" if watchlist else "\n\nANALYZE ALL STOCKS - No restrictions."
+            
+            prompt = f"""You are a professional stock market analyst. Analyze the following financial news and identify the ONE stock with the HIGHEST EXPLOSIVE POTENTIAL in the next 7-30 days.
 
-WATCHLIST: {', '.join(watchlist)}
-
-NEWS ARTICLES:
+NEWS ARTICLES FROM MULTIPLE SOURCES:
 {news_text}
+{watchlist_constraint}
 
-Please respond in JSON format with:
+CRITERIA FOR EXPLOSIVE POTENTIAL:
+1. ⚡ **Catalysts**: Earnings beats, FDA approvals, product launches, M&A, partnerships
+2. 📈 **Momentum**: Multiple positive articles, analyst upgrades, price action
+3. 💰 **Market Impact**: Significant revenue/growth announcements
+4. 🔥 **Sentiment Surge**: Bullish tone, excitement, breakthrough news
+5. 🎯 **Timing**: Recent/imminent events (not old news)
+
+IDENTIFY the stock ticker symbol (e.g., AAPL, TSLA, NVDA) that has:
+- The STRONGEST catalyst(s) for explosive growth
+- The MOST BULLISH sentiment shift
+- The HIGHEST probability of significant price movement
+
+Respond ONLY in JSON format:
 {{
-    "trending_stock": "SYMBOL",
+    "trending_stock": "TICKER_SYMBOL",
     "confidence": 0-100,
-    "reasoning": "brief explanation (2-3 sentences)",
+    "reasoning": "Concise explanation (2-3 sentences) of WHY this will explode",
     "sentiment": "bullish/neutral/bearish",
-    "key_topics": ["topic1", "topic2", "topic3"],
-    "news_count": number of articles mentioning this stock
+    "key_topics": ["catalyst1", "catalyst2", "catalyst3"],
+    "news_count": number_of_relevant_articles,
+    "explosion_catalysts": ["specific event 1", "specific event 2"],
+    "timeframe": "7-30 days estimate",
+    "risk_level": "low/medium/high"
 }}
 
-Focus on:
-1. Frequency of mentions across articles
-2. Significance of the news (earnings, product launches, regulatory, etc.)
-3. Sentiment and market impact
-4. Recent price movements or analyst upgrades
+IMPORTANT: 
+- Focus on ACTIONABLE explosive opportunities, not general trending
+- Identify the ticker symbol even if not explicitly mentioned (use company name)
+- Prioritize stocks with MULTIPLE positive catalysts
+- Be specific about what will drive the explosion
 
-Return only the JSON, no additional text."""
+Return ONLY valid JSON, no markdown or extra text."""
 
             # Get response from Gemini
             response = self.model.generate_content(prompt)
@@ -107,12 +124,17 @@ Return only the JSON, no additional text."""
             result = json.loads(result_text)
             
             # Add metadata
-            result['source'] = 'gemini-2.0-flash-exp'
+            result['source'] = 'gemini-2.5-flash'
             result['timestamp'] = datetime.now().isoformat()
             result['articles_analyzed'] = len(news_articles)
             
-            self.logger.info(f"✅ Gemini identified trending stock: {result.get('trending_stock')} "
-                           f"(confidence: {result.get('confidence')}%)")
+            # Ensure required fields
+            if not result.get('trending_stock'):
+                self.logger.warning("Gemini did not identify a stock - using fallback")
+                return self._fallback_analysis(news_articles, watchlist or [])
+            
+            self.logger.info(f"🚀 Gemini identified EXPLOSIVE opportunity: {result.get('trending_stock')} "
+                           f"(confidence: {result.get('confidence')}%) - {result.get('reasoning', '')[:50]}...")
             
             return result
             
