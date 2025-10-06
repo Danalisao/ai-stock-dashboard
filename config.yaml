@@ -379,7 +379,7 @@ ml_predictor:
   lookback_days: 60  # Historical window for training
   forecast_days: 30  # Prediction horizon (30-day forecast)
   retrain_interval_days: 7  # Retrain weekly
-  min_training_samples: 200  # Minimum data points required
+  min_training_samples: 60  # Minimum data points required (reduced for flexibility)
   model_dir: ./models  # Model persistence directory
   
   # Model ensemble weights (must sum to 1.0)

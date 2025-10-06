@@ -291,7 +291,9 @@ class MLPredictor:
         df = df.dropna()
         
         if len(df) < self.min_training_samples:
-            raise ValueError(f"Insufficient data: {len(df)} samples, need {self.min_training_samples}")
+            self.logger.warning(f"Limited data: {len(df)} samples (recommended: {self.min_training_samples}+)")
+            if len(df) < 30:  # Absolute minimum
+                raise ValueError(f"Insufficient data: {len(df)} samples, need at least 30")
         
         # Separate features and target
         target_col = 'target'
