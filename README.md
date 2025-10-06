@@ -1,213 +1,405 @@
-# 💎 AI Stock Trading Dashboard
+# 🚀 AI Stock Trading Dashboard# 💎 AI Stock Trading Dashboard
 
-[![Python](https://img.shields.io/badge/Python-3.13-blue)](https://www.python.org/)
+> **Plateforme professionnelle de trading avec système intraday automatique**[![Python](https://img.shields.io/badge/Python-3.13-blue)](https://www.python.org/)
+
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.50-red)](https://streamlit.io/)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red.svg)](https://streamlit.io/)[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **Plateforme de trading professionnel avec IA - Détection d'opportunités explosives 24/7**
 
+---
+
 Dashboard professionnel de trading qui scanne automatiquement **250+ actions** et détecte les meilleures opportunités avec signaux décisifs, alertes instantanées et monitoring prémarché.
+
+## 📋 Table des Matières
 
 ![Main Dashboard](screenshots/main_dashboard.jpg)
 
----
+- [Vue d'ensemble](#-vue-densemble)
 
-## 🚀 SETUP PROFESSIONNEL DE TRADING
+- [Fonctionnalités](#-fonctionnalités)---
 
-### **Nouveau : Monitoring 24/7 pour Trader Opportuniste**
+- [Démarrage Rapide](#-démarrage-rapide)
 
-Ce système est conçu pour les traders professionnels qui veulent **saisir TOUTES les opportunités explosives**, particulièrement en prémarché (4h-9h30 AM ET) quand les mouvements les plus importants se produisent.
+- [Trading Intraday Automatique](#-trading-intraday-automatique)## 🚀 SETUP PROFESSIONNEL DE TRADING
 
-**🎯 Caractéristiques professionnelles :**
+- [Documentation](#-documentation)
 
-- **🌅 Détection Prémarché** : Earnings, FDA, M&A, guidance AVANT l'ouverture
+- [Architecture](#-architecture)### **Nouveau : Monitoring 24/7 pour Trader Opportuniste**
+
+---Ce système est conçu pour les traders professionnels qui veulent **saisir TOUTES les opportunités explosives**, particulièrement en prémarché (4h-9h30 AM ET) quand les mouvements les plus importants se produisent.
+
+## 🎯 Vue d'ensemble**🎯 Caractéristiques professionnelles :**
+
+Plateforme complète de trading professionnel combinant :- **🌅 Détection Prémarché** : Earnings, FDA, M&A, guidance AVANT l'ouverture
+
 - **💎 Pump Stocks** : Détection automatique volume surge + price spike
-- **🤖 IA Gemini** : Découverte d'opportunités cachées par intelligence artificielle
-- **⚡ Alertes Instantanées** : Telegram (< 5 sec), Email, Desktop, Audio
-- **🔄 Monitoring 24/7** : Le système tourne en continu et vous alerte automatiquement
-- **📊 Control Center** : Dashboard de contrôle pour gérer tous les monitors
 
-### **Démarrage Rapide Professionnel**
+- 📊 **Analyse technique avancée** (50+ indicateurs)- **🤖 IA Gemini** : Découverte d'opportunités cachées par intelligence artificielle
 
-#### **Option 1 : Lancement Automatique (RECOMMANDÉ)**
+- 🤖 **IA Gemini** pour analyse de marché- **⚡ Alertes Instantanées** : Telegram (< 5 sec), Email, Desktop, Audio
 
-**Windows :**
+- ⚡ **Trading intraday automatique** avec notifications Telegram- **🔄 Monitoring 24/7** : Le système tourne en continu et vous alerte automatiquement
+
+- 📰 **Agrégation de news** multi-sources- **📊 Control Center** : Dashboard de contrôle pour gérer tous les monitors
+
+- 💼 **Gestion de portfolio** avec P&L tracking
+
+- 🔮 **Prédictions ML** (LSTM, Random Forest, XGBoost)### **Démarrage Rapide Professionnel**
+
+- 🎯 **Scoring 0-100** pour signaux mensuels
+
+- 📱 **Alertes multi-canaux** (Telegram, Email, Desktop, Audio)#### **Option 1 : Lancement Automatique (RECOMMANDÉ)**
+
+---**Windows :**
+
 ```bash
-# Double-cliquer sur
+
+## ✨ Fonctionnalités# Double-cliquer sur
+
 launch_pro_trading.bat
-```
 
-**Linux/Mac :**
-```bash
-chmod +x launch_pro_trading.sh
-./launch_pro_trading.sh
-```
+### 🔥 Trading Intraday Automatique (NOUVEAU)```
 
-#### **Option 2 : Control Center (Interface Graphique)**
+
+
+**Système 100% automatique qui scanne le marché et vous alerte via Telegram :****Linux/Mac :**
 
 ```bash
-streamlit run scripts/control_center.py
-```
+
+- ⚡ **5 types de setups** : ORB, Momentum Breakout, VWAP Reversal, Volume Surge, BB Breakoutchmod +x launch_pro_trading.sh
+
+- 📱 **Notifications instantanées** : Entry/Exit avec prix, stop loss, target, R/R./launch_pro_trading.sh
+
+- 🔄 **Scan continu** : 9:30-16:00 ET (30s standard / 15s agressif)```
+
+- 🛑 **Auto-close** : Fermeture automatique avant 16h (zéro risque overnight)
+
+- 🎯 **Scoring intelligent** : 0-100 basé sur prix, volume, technicals, momentum#### **Option 2 : Control Center (Interface Graphique)**
+
+
+
+**Lancement** :```bash
+
+```bashstreamlit run scripts/control_center.py
+
+# Mode standard (3-7 alertes/jour)```
+
+python scripts/intraday_trader.py
 
 Le Control Center vous permet de :
-- ✅ Démarrer/arrêter tous les monitors en un clic
-- 📊 Voir les alertes en temps réel
-- ⚙️ Configurer les canaux d'alerte
+
+# Mode agressif (10-20 alertes/jour)  - ✅ Démarrer/arrêter tous les monitors en un clic
+
+python scripts/intraday_trader.py --aggressive- 📊 Voir les alertes en temps réel
+
+```- ⚙️ Configurer les canaux d'alerte
+
 - 📈 Consulter les statistiques de performance
+
+📖 **Guide complet** : [`docs/INTRADAY_TRADING_GUIDE.md`](docs/INTRADAY_TRADING_GUIDE.md)
 
 #### **Option 3 : Monitoring Direct 24/7**
 
+---
+
 ```bash
-# Mode standard (seuils équilibrés)
+
+## 🚀 Démarrage Rapide# Mode standard (seuils équilibrés)
+
 python scripts/pro_trader_monitor.py
 
-# Mode agressif (plus d'alertes, seuils plus bas)
-python scripts/pro_trader_monitor.py --aggressive
+### 1️⃣ Installation
 
-# Prémarché uniquement (4h-9h30 AM ET)
-python scripts/pro_trader_monitor.py --premarket-only
+# Mode agressif (plus d'alertes, seuils plus bas)
+
+```bashpython scripts/pro_trader_monitor.py --aggressive
+
+# Cloner
+
+git clone https://github.com/Danalisao/ai-stock-dashboard.git# Prémarché uniquement (4h-9h30 AM ET)
+
+cd ai-stock-dashboardpython scripts/pro_trader_monitor.py --premarket-only
+
 ```
 
-### **Configuration Obligatoire (5 minutes)**
+# Environnement virtuel
 
-Pour recevoir les alertes instantanées, configurez **au minimum Telegram** :
+python -m venv .venv### **Configuration Obligatoire (5 minutes)**
 
-1. **Créer `.env` depuis le template** :
-   ```bash
-   cp .env.example .env
+.\.venv\Scripts\Activate.ps1  # Windows
+
+# source .venv/bin/activate    # Linux/MacPour recevoir les alertes instantanées, configurez **au minimum Telegram**
+
+# Dépendances1. **Créer `.env` depuis le template**
+
+pip install -r requirements.txt   ```bash
+
+```   cp .env.example .env
+
    ```
+
+### 2️⃣ Configuration
 
 2. **Configurer Telegram** (PRIORITAIRE - alertes < 5 sec) :
-   - Créer un bot : chercher `@BotFather` sur Telegram
-   - Obtenir le token : `/newbot`
-   - Obtenir votre chat ID : https://api.telegram.org/bot<TOKEN>/getUpdates
-   - Ajouter dans `.env` :
-     ```bash
-     TELEGRAM_BOT_TOKEN=123456789:ABC...
-     TELEGRAM_CHAT_ID=987654321
-     ```
 
-3. **Configurer Gemini AI** (OPPORTUNITÉS) :
+Créer `.env` :   - Créer un bot : chercher `@BotFather` sur Telegram
+
+- Obtenir le token : `/newbot`
+
+```env   - Obtenir votre chat ID : https://api.telegram.org/bot<TOKEN>/getUpdates
+
+# Telegram (OBLIGATOIRE)   - Ajouter dans `.env` :
+
+TELEGRAM_BOT_TOKEN=your_token     ```bash
+
+TELEGRAM_CHAT_ID=your_chat_id     TELEGRAM_BOT_TOKEN=123456789:ABC...
+
+     TELEGRAM_CHAT_ID=987654321
+
+# Gemini AI (optionnel)     ```
+
+GEMINI_API_KEY=your_key
+
+```3. **Configurer Gemini AI** (OPPORTUNITÉS) :
+
    - Obtenir une clé : https://aistudio.google.com/app/apikey
-   - Ajouter dans `.env` :
+
+### 3️⃣ Test   - Ajouter dans `.env` :
+
      ```bash
-     GEMINI_API_KEY=AIzaSy...
-     ```
+
+```bash     GEMINI_API_KEY=AIzaSy...
+
+python scripts/test_intraday_system.py     ```
+
+```
 
 4. **Tester les alertes** :
-   ```bash
+
+### 4️⃣ Lancement   ```bash
+
    python -c "from modules.alert_manager import AlertManager; from modules.utils import load_config; print(AlertManager(load_config()).test_alerts())"
-   ```
 
-### **Documentation Complète**
+```bash```
 
-📖 **[Guide Setup Professionnel Complet](docs/PRO_TRADER_SETUP.md)** ⭐ NOUVEAU
+# Dashboard
 
-- Installation détaillée
+python -m streamlit run app.py### **Documentation Complète**
+
+# Intraday trader📖 **[Guide Setup Professionnel Complet](docs/PRO_TRADER_SETUP.md)** ⭐ NOUVEAU
+
+python scripts/intraday_trader.py
+
+```- Installation détaillée
+
 - Configuration des alertes (Telegram, Email, Audio)
-- Déploiement 24/7 (cron, Task Scheduler)
+
+---- Déploiement 24/7 (cron, Task Scheduler)
+
 - Optimisation et personnalisation
-- Stratégies de trading recommandées
+
+## ⚡ Trading Intraday- Stratégies de trading recommandées
+
 - Dépannage
+
+### Exemple Notification
 
 ---
 
-![Main Dashboard](screenshots/main_dashboard.jpg)
-
-## ✨ Fonctionnalités Principales
-
-### 🎯 **Signaux Mensuels Décisifs**
-
-- **Score 0-100** avec 5 composants pondérés (trend, momentum, sentiment, divergence, volume)
-- **Recommandations claires**: STRONG BUY → STRONG SELL
-- **Paramètres de trading**: Entry, Stop Loss, Take Profit, Risk/Reward
-- **Position sizing** recommandé selon le score
-- **Historique des scores** avec graphiques
-
-### 📰 **News & Sentiment Analysis**
-
-- **Multi-sources**: Yahoo Finance, Finviz, Reddit (r/stocks, r/wallstreetbets)
-- **Sentiment analysis**: VADER + TextBlob + Keywords
-- **Tendances**: Graphiques de sentiment sur 30 jours
-- **100% gratuit** - Aucun API payant requis
-
-### 💼 **Portfolio Tracking**
-
-- **Suivi positions**: P&L réalisé et non-réalisé
-- **Métriques**: Sharpe Ratio, Sortino, Calmar, Max Drawdown
-- **Win rate** et profit factor
-- **Paper trading** simulator
-
-### 🔙 **Backtesting Engine**
-
-- **Tests historiques** de stratégies mensuelles
-- **Performance metrics** complets
-- **Comparaison vs SPY** benchmark
-- **Trade-by-trade** breakdown
-
-### 🚨 **Système d'Alertes**
-
-- **Multi-canaux**: Desktop, Email, Telegram, Audio
-- **9 types d'alertes**: RSI, volume, sentiment, breakouts, etc.
-- **🌅 Alertes Pré-Marchés**: Earnings, FDA, M&A, guidance (4:00-9:30 AM ET)
-- **Priorités automatiques**: CRITICAL → LOW
-
-## 🚀 Démarrage Rapide (2 minutes)
-
-### Installation
-
-```bash
-# 1. Cloner le projet
-git clone https://github.com/yourusername/ai-stock-dashboard.git
-cd ai-stock-dashboard
-
-# 2. Créer l'environnement virtuel
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 3. Installer les dépendances
-pip install -r requirements.txt
-
-# 4. Lancer le dashboard
-./run.sh
-# Ou: streamlit run app.py
-
-# 💡 BONUS: Utilisez le Makefile pour des commandes simplifiées!
-make help      # Voir toutes les commandes
-make install   # Installation auto
-make run       # Lancement rapide
 ```
 
-**Le dashboard s'ouvre à:** <http://localhost:8501>
+🟢 INTRADAY ENTRY SIGNAL 🟢![Main Dashboard](screenshots/main_dashboard.jpg)
+
+📊 Symbol: TSLA## ✨ Fonctionnalités Principales
+
+🎯 Setup: Momentum Breakout
+
+💯 Score: 87.3/100### 🎯 **Signaux Mensuels Décisifs**
+
+💰 Entry: $245.80- **Score 0-100** avec 5 composants pondérés (trend, momentum, sentiment, divergence, volume)
+
+🛑 Stop: $241.30 (-1.8%)- **Recommandations claires**: STRONG BUY → STRONG SELL
+
+🎯 Target: $253.80 (+3.3%)- **Paramètres de trading**: Entry, Stop Loss, Take Profit, Risk/Reward
+
+📊 R/R: 1:1.8- **Position sizing** recommandé selon le score
+
+- **Historique des scores** avec graphiques
+
+⚡ ACTION: BUY @ $245.80
+
+```### 📰 **News & Sentiment Analysis**
+
+
+
+### Auto-Start Windows- **Multi-sources**: Yahoo Finance, Finviz, Reddit (r/stocks, r/wallstreetbets)
+
+- **Sentiment analysis**: VADER + TextBlob + Keywords
+
+Task Scheduler :- **Tendances**: Graphiques de sentiment sur 30 jours
+
+- Program: `.venv\Scripts\python.exe`- **100% gratuit** - Aucun API payant requis
+
+- Arguments: `scripts\start_intraday_system.py`
+
+- Trigger: At startup### 💼 **Portfolio Tracking**
+
+
+
+---- **Suivi positions**: P&L réalisé et non-réalisé
+
+- **Métriques**: Sharpe Ratio, Sortino, Calmar, Max Drawdown
+
+## 📚 Documentation- **Win rate** et profit factor
+
+- **Paper trading** simulator
+
+- 📖 [Guide Intraday](docs/INTRADAY_TRADING_GUIDE.md) - **Guide complet**
+
+- 🎯 [Quick Start](docs/QUICKSTART.md)### 🔙 **Backtesting Engine**
+
+- 🔧 [Setup Pro](docs/PRO_TRADER_SETUP.md)
+
+- 🤖 [Gemini AI](docs/GEMINI_SETUP.md)- **Tests historiques** de stratégies mensuelles
+
+- 📧 [Gmail](docs/GMAIL_APP_PASSWORD_GUIDE.md)- **Performance metrics** complets
+
+- **Comparaison vs SPY** benchmark
+
+---- **Trade-by-trade** breakdown
+
+
+
+## 🏗️ Architecture### 🚨 **Système d'Alertes**
+
+
+
+```- **Multi-canaux**: Desktop, Email, Telegram, Audio
+
+ai-stock-dashboard/- **9 types d'alertes**: RSI, volume, sentiment, breakouts, etc.
+
+├── app.py                          # Dashboard Streamlit- **🌅 Alertes Pré-Marchés**: Earnings, FDA, M&A, guidance (4:00-9:30 AM ET)
+
+├── modules/                        # Modules Python- **Priorités automatiques**: CRITICAL → LOW
+
+│   ├── alert_manager.py
+
+│   ├── technical_indicators.py## 🚀 Démarrage Rapide (2 minutes)
+
+│   ├── monthly_signals.py
+
+│   ├── gemini_analyzer.py### Installation
+
+│   └── ...
+
+├── scripts/```bash
+
+│   ├── intraday_trader.py         # ⭐ Scanner intraday# 1. Cloner le projet
+
+│   ├── start_intraday_system.py   # ⭐ Auto-startgit clone https://github.com/yourusername/ai-stock-dashboard.git
+
+│   └── ...cd ai-stock-dashboard
+
+├── docs/                           # Documentation
+
+└── data/                           # Données# 2. Créer l'environnement virtuel
+
+```python3 -m venv venv
+
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+---
+
+# 3. Installer les dépendances
+
+## 🎮 Commandespip install -r requirements.txt
+
+
+
+```bash# 4. Lancer le dashboard
+
+# Dashboard./run.sh
+
+python -m streamlit run app.py# Ou: streamlit run app.py
+
+
+
+# Intraday standard# 💡 BONUS: Utilisez le Makefile pour des commandes simplifiées!
+
+python scripts/intraday_trader.pymake help      # Voir toutes les commandes
+
+make install   # Installation auto
+
+# Intraday agressifmake run       # Lancement rapide
+
+python scripts/intraday_trader.py --aggressive```
+
+
+
+# Tests**Le dashboard s'ouvre à:** <http://localhost:8501>
+
+python scripts/test_intraday_system.py
 
 ### Configuration Optionnelle
 
-Pour utiliser Reddit sentiment et alertes Telegram:
+# Lanceur Windows
 
-```bash
-cp .env.example .env
-# Éditer .env avec vos API keys (optionnel)
+launch_intraday.batPour utiliser Reddit sentiment et alertes Telegram:
+
 ```
 
-## 📊 Utilisation
+```bash
 
-### Workflow Quotidien
+---cp .env.example .env
 
-1. **Matin (8h-9h30)**: Lancer le scanner
+# Éditer .env avec vos API keys (optionnel)
 
-   ```bash
+## ⚠️ Disclaimer```
+
+
+
+- ❌ Éducatif uniquement - Pas de conseil financier## 📊 Utilisation
+
+- ❌ Risques de perte en capital
+
+- ✅ Consultez un conseiller agréé### Workflow Quotidien
+
+- ✅ Commencez en paper trading
+
+- ✅ Utilisez toujours des stop loss1. **Matin (8h-9h30)**: Lancer le scanner
+
+
+
+---   ```bash
+
    ./run.sh  # Choix 1: Dashboard
-   ```
 
-   - Cliquer "🚀 Lancer Scan Complet"
+## 📄 Licence   ```
+
+
+
+MIT License   - Cliquer "🚀 Lancer Scan Complet"
+
    - Analyser les 2-5 pépites détectées (score ≥ 85)
 
-2. **Pendant Marché**: Surveiller positions
-   - Onglet "💼 Portfolio" pour P&L temps réel
-   - Alertes automatiques sur mouvements importants
+---
 
-3. **Après Marché**: Review et préparation
+2. **Pendant Marché**: Surveiller positions
+
+**Version** : 2.0 Intraday     - Onglet "💼 Portfolio" pour P&L temps réel
+
+**Status** : ✅ Production Ready   - Alertes automatiques sur mouvements importants
+
+
+
+**💰 Bon trading ! 📈🚀**3. **Après Marché**: Review et préparation
+
    - Onglet "🔙 Backtesting" pour tester stratégies
    - Ajuster watchlist si nécessaire
 
