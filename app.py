@@ -30,6 +30,7 @@ from modules.alert_manager import AlertManager
 from modules.portfolio_tracker import PortfolioTracker
 from modules.backtester import Backtester
 from modules.ml_predictor import MLPredictor
+from modules.gemini_analyzer import GeminiAnalyzer
 from modules.pro_mode_guard import ProModeGuard
 
 # Configure page
@@ -108,6 +109,7 @@ class TradingDashboard:
         self.portfolio_tracker = PortfolioTracker(self.config, self.db)
         self.backtester = Backtester(self.config, self.monthly_signals, self.db)
         self.ml_predictor = MLPredictor(self.config)
+        self.gemini_analyzer = GeminiAnalyzer(self.config)
         
         # Professional mode enforcement - ALWAYS ACTIVE
         self.pro_guard = ProModeGuard(self.config, self.db)
@@ -133,10 +135,89 @@ class TradingDashboard:
             return watchlist_config
         return []
     
+    def _render_trending_stock_banner(self):
+        """Render AI-powered trending stock banner at the top"""
+        # Use session state to cache the trending stock analysis
+        if 'trending_stock_data' not in st.session_state or \
+           (datetime.now() - st.session_state.get('trending_stock_timestamp', datetime.min)).seconds > 3600:
+            
+            with st.spinner("🤖 AI analyzing market news to find trending stock..."):
+                # Get watchlist
+                watchlist = self._get_default_watchlist()
+                if not watchlist:
+                    return
+                
+                # Fetch recent news for all watchlist stocks
+                all_news = []
+                for symbol in watchlist[:20]:  # Limit to first 20 stocks
+                    try:
+                        news = self.news_aggregator.fetch_all_news(symbol)
+                        all_news.extend(news[:5])  # Take 5 most recent per stock
+                    except:
+                        continue
+                
+                if not all_news:
+                    return
+                
+                # Analyze with Gemini
+                trending_data = self.gemini_analyzer.analyze_trending_stock(all_news, watchlist)
+                
+                if trending_data:
+                    st.session_state.trending_stock_data = trending_data
+                    st.session_state.trending_stock_timestamp = datetime.now()
+        
+        # Display trending stock banner
+        if 'trending_stock_data' in st.session_state:
+            data = st.session_state.trending_stock_data
+            symbol = data.get('trending_stock', 'N/A')
+            confidence = data.get('confidence', 0)
+            reasoning = data.get('reasoning', '')
+            sentiment = data.get('sentiment', 'neutral')
+            news_count = data.get('news_count', 0)
+            
+            # Color based on sentiment
+            if sentiment == 'bullish':
+                bg_color = "rgba(0, 255, 136, 0.1)"
+                border_color = "#00ff88"
+                emoji = "🚀"
+            elif sentiment == 'bearish':
+                bg_color = "rgba(255, 100, 100, 0.1)"
+                border_color = "#ff6464"
+                emoji = "⚠️"
+            else:
+                bg_color = "rgba(100, 150, 255, 0.1)"
+                border_color = "#6496ff"
+                emoji = "📊"
+            
+            st.markdown(f"""
+            <div style="background: {bg_color}; border-left: 4px solid {border_color}; padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
+                <h3 style="margin:0; color: {border_color};">{emoji} AI Trending Stock: <strong>{symbol}</strong></h3>
+                <p style="margin: 0.5rem 0; font-size: 1rem;">{reasoning}</p>
+                <div style="display: flex; gap: 2rem; margin-top: 0.5rem; font-size: 0.9rem; color: #888;">
+                    <span>🎯 Confidence: <strong>{confidence}%</strong></span>
+                    <span>📰 Mentions: <strong>{news_count}</strong></span>
+                    <span>💹 Sentiment: <strong>{sentiment.upper()}</strong></span>
+                    <span>🤖 Source: <strong>{data.get('source', 'AI')}</strong></span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Add quick action button
+            col1, col2, col3 = st.columns([1, 1, 4])
+            with col1:
+                if st.button(f"📊 Analyze {symbol}", key="analyze_trending"):
+                    st.session_state.selected_symbol = symbol
+                    st.rerun()
+            with col2:
+                if st.button("🔄 Refresh AI Analysis", key="refresh_trending"):
+                    if 'trending_stock_data' in st.session_state:
+                        del st.session_state.trending_stock_data
+                    st.rerun()
+    
     def run(self):
         """Run the main dashboard application"""
         # Header
-        st.markdown('<div class="main-header">� Professional Trading System</div>', unsafe_allow_html=True)
+        st.markdown('<div class="main-header">🛡️ Professional Trading System</div>', unsafe_allow_html=True)
         st.markdown("**Institutional-Grade Market Analysis & Signal Generation**")
         
         # System status indicator
@@ -147,7 +228,10 @@ class TradingDashboard:
         if market_open:
             st.info("🟢 **MARKETS OPEN** - Live trading signals active")
         else:
-            st.info("� **MARKETS CLOSED** - Pre-market analysis mode")
+            st.info("🔴 **MARKETS CLOSED** - Pre-market analysis mode")
+        
+        # AI-Powered Trending Stock Highlight
+        self._render_trending_stock_banner()
         
         # Sidebar
         self._render_sidebar()
